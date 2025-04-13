@@ -1,0 +1,68 @@
+@startuml Experiment Architecture
+
+title "RISC-V Experiment Architecture"
+
+skinparam backgroundColor white
+skinparam style strictuml
+
+' Main components
+package "Experiment Scripts" {
+  [run_experiments.sh] as MainScript
+  [timing_experiment.sh] as TimingScript
+  [energy_experiment.sh] as EnergyScript
+  [setup_riscv.sh] as SetupScript
+  [analyze_results.py] as AnalysisScript
+}
+
+package "Measurement Programs" {
+  [measure_prng_time] as PRNGMeasure
+  [measure_primality_time] as PrimalityMeasure
+  [continuous_operation] as ContinuousOp
+}
+
+package "Existing Components" {
+  [PRNG Algorithms] as PRNGAlgos
+  [Primality Tests] as PrimalityTests
+}
+
+database "Results" {
+  [Timing CSV Files] as TimingCSV
+  [Energy Log Files] as EnergyLog
+}
+
+package "Configuration" {
+  [default_config.json] as Config
+}
+
+package "Analysis Output" {
+  [Summary CSV] as SummaryCSV
+  [Plots] as Plots
+}
+
+' Relationships
+MainScript --> TimingScript : calls
+MainScript --> EnergyScript : calls
+SetupScript --> MainScript : prepares for
+
+TimingScript --> PRNGMeasure : executes
+TimingScript --> PrimalityMeasure : executes
+EnergyScript --> ContinuousOp : executes
+
+PRNGMeasure --> PRNGAlgos : uses
+PrimalityMeasure --> PrimalityTests : uses
+ContinuousOp --> PRNGAlgos : uses
+ContinuousOp --> PrimalityTests : uses
+
+TimingScript --> TimingCSV : produces
+EnergyScript --> EnergyLog : produces
+
+Config --> MainScript : configures
+Config --> TimingScript : configures
+Config --> EnergyScript : configures
+
+AnalysisScript --> TimingCSV : reads
+AnalysisScript --> EnergyLog : reads
+AnalysisScript --> SummaryCSV : produces
+AnalysisScript --> Plots : generates
+
+@enduml 

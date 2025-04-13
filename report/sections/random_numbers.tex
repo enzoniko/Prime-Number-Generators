@@ -1,0 +1,320 @@
+\section{Random Numbers}
+
+This section covers the pseudo-random number generators (PRNGs) implemented in this project. We have chosen to implement and analyze two algorithms: the Linear Congruential Generator (LCG) and the Xoshiro256++ generator. Both algorithms have been implemented with the capability to generate random numbers up to 4096 bits in length, with particular focus on their performance characteristics in resource-constrained environments.
+
+\subsection{Theoretical Background and Selection Criteria}
+
+Pseudo-random number generators are deterministic algorithms that produce sequences of numbers that approximate the properties of random numbers. These algorithms typically start with an initial value called a seed and apply transformations to generate subsequent values. The quality of a PRNG is assessed through various statistical measures, as well as practical considerations regarding implementation complexity and computational efficiency.
+
+In cryptographic applications, especially those deployed in resource-constrained systems such as embedded devices and IoT platforms, PRNGs must satisfy several properties \cite{prng_iot}:
+
+\begin{itemize}
+    \item \textbf{Uniform Distribution}: The generated numbers should be uniformly distributed across their range, ensuring unbiased sampling.
+    
+    \item \textbf{Independence}: Each generated number should be statistically independent of previous numbers, preventing predictability patterns.
+    
+    \item \textbf{Long Period}: The sequence should repeat only after a very large number of generations, particularly critical for applications requiring extensive random sampling.
+    
+    \item \textbf{Unpredictability}: Given a sequence of previously generated numbers, it should be computationally infeasible to predict the next number, a vital property for security applications.
+    
+    \item \textbf{Computational Efficiency}: The algorithm should require minimal computational resources, making it suitable for devices with limited processing capabilities.
+    
+    \item \textbf{Memory Efficiency}: The state size should be minimal, accommodating devices with restricted memory constraints.
+    
+    \item \textbf{Energy Efficiency}: The operations should consume minimal energy, a critical consideration for battery-powered devices \cite{embedded_prng}.
+\end{itemize}
+
+While the PRNGs implemented in this project are not cryptographically secure in the strictest sense, they provide a foundation for understanding and implementing more secure generators. Our selection of LCG and Xoshiro256++ was informed by their demonstrated efficiency in resource-constrained environments, as documented in the literature \cite{prng_iot, xoshiro_website}.
+
+\subsection{Linear Congruential Generator (LCG)}
+
+\subsubsection{Algorithm Description and Justification}
+
+The Linear Congruential Generator is one of the oldest and simplest PRNGs. Despite its simplicity, it remains relevant in resource-constrained environments due to its minimal computational and memory requirements \cite{prng_iot}. It operates based on the following recurrence relation:
+
+\begin{equation}
+X_{n+1} = (a \cdot X_n + c) \bmod m
+\end{equation}
+
+where:
+\begin{itemize}
+    \item $X_n$ is the sequence of generated values
+    \item $a$ is the multiplier
+    \item $c$ is the increment
+    \item $m$ is the modulus
+    \item $X_0$ is the initial seed
+\end{itemize}
+
+In our implementation, we use the following parameters:
+\begin{itemize}
+    \item $a = 6364136223846793005$ (from the POSIX standard)
+    \item $c = 1$
+    \item $m = 2^{64}$ (implicit due to 64-bit integer overflow)
+\end{itemize}
+
+The primary advantages of LCG in resource-constrained environments include:
+
+\begin{itemize}
+    \item \textbf{Minimal State Size}: LCG requires storage of only a single integer (the current state), resulting in a memory footprint of just 64 bits. This is particularly advantageous in systems with severe memory constraints \cite{embedded_prng}.
+    
+    \item \textbf{Computational Simplicity}: Each iteration requires only a multiplication, an addition, and an implicit modulo operation (through integer overflow), making it extremely efficient in terms of CPU cycles.
+    
+    \item \textbf{Energy Efficiency}: The simplicity of operations translates to lower energy consumption, a critical factor for battery-powered devices \cite{prng_iot}.
+\end{itemize}
+
+For generating multi-precision numbers, we combine multiple 64-bit outputs from the LCG to create numbers of arbitrary bit lengths, an approach that maintains the algorithm's efficiency while extending its capability to generate large numbers.
+
+\subsubsection{Implementation Details}
+
+Our LCG implementation follows an object-oriented approach with a clean interface:
+
+\begin{lstlisting}[language=C++, caption=LCG Implementation (Header)]
+class LinearCongruentialGenerator {
+private:
+    uint64_t state;
+    const uint64_t a = 6364136223846793005ULL;
+    const uint64_t c = 1;
+
+public:
+    // Constructor initializes with a seed
+    LinearCongruentialGenerator(uint64_t seed = 12345);
+    
+    // Generate a random 64-bit unsigned integer
+    uint64_t next();
+    
+    // Generate a random number with specified bit length
+    void randbits(mpz_t result, size_t bits);
+    
+    // Reset the generator to a specific seed
+    void seed(uint64_t new_seed);
+};
+\end{lstlisting}
+
+The core logic lies in the `next()` method, which applies the LCG recurrence relation:
+
+\begin{lstlisting}[language=C++, caption=LCG Implementation (Core Function)]
+uint64_t LinearCongruentialGenerator::next() {
+    // Apply the LCG recurrence relation
+    state = a * state + c;
+    return state;
+}
+\end{lstlisting}
+
+For generating large numbers, the `randbits()` method combines multiple calls to `next()`:
+
+\begin{lstlisting}[language=C++, caption=LCG Implementation (Random Bits Generation)]
+void LinearCongruentialGenerator::randbits(mpz_t result, size_t bits) {
+    // Calculate how many 64-bit blocks we need
+    size_t num_blocks = (bits + 63) / 64;
+    
+    // Create a buffer for storing blocks
+    uint64_t* blocks = new uint64_t[num_blocks];
+    
+    // Generate the blocks
+    for (size_t i = 0; i < num_blocks; i++) {
+        blocks[i] = next();
+    }
+    
+    // Convert to GMP integer
+    mpz_import(result, num_blocks, -1, sizeof(uint64_t), 0, 0, blocks);
+    
+    // Ensure result has exactly 'bits' bits
+    mpz_fdiv_r_2exp(result, result, bits);
+    
+    // Set the most significant bit to ensure the number has exactly 'bits' bits
+    mpz_setbit(result, bits - 1);
+    
+    delete[] blocks;
+}
+\end{lstlisting}
+
+\subsection{Xoshiro256++ Generator}
+
+\subsubsection{Algorithm Description and Justification}
+
+The Xoshiro256++ generator represents the current state of the art in non-cryptographic PRNGs, developed by Blackman and Vigna \cite{blackman2019}. It offers an excellent balance between statistical quality, speed, and state size, making it well-suited for resource-constrained systems while providing superior randomness properties compared to simpler generators like LCG \cite{xoshiro_website}.
+
+The algorithm maintains a state of 256 bits, represented as four 64-bit integers. While this is larger than the LCG's state, it remains modest in comparison to other high-quality PRNGs such as the Mersenne Twister (which requires 2.5KB of state) \cite{matsumoto1998}, making it suitable for memory-constrained environments.
+
+The state transition function is defined as:
+
+\begin{align}
+t &= s[1] << 17 \\
+s[2] &= s[2] \oplus s[0] \\
+s[3] &= s[3] \oplus s[1] \\
+s[1] &= s[1] \oplus s[2] \\
+s[0] &= s[0] \oplus s[3] \\
+s[2] &= s[2] \oplus t \\
+s[3] &= \text{rotl}(s[3], 45)
+\end{align}
+
+The output function for Xoshiro256++ is:
+\begin{equation}
+\text{output} = \text{rotl}(s[0] + s[3], 23) + s[0]
+\end{equation}
+
+where $\text{rotl}(x, k)$ is a bitwise left rotation of $x$ by $k$ bits.
+
+The key advantages of Xoshiro256++ for resource-constrained systems include:
+
+\begin{itemize}
+    \item \textbf{Exceptional Statistical Properties}: Xoshiro256++ passes all statistical tests in the TestU01 suite's BigCrush battery, ensuring high-quality randomness \cite{blackman2019, xoshiro_website}.
+    
+    \item \textbf{Long Period}: The generator has a period of $2^{256} - 1$, making it suitable for applications requiring extensive random sampling without repetition.
+    
+    \item \textbf{Computational Efficiency}: Despite its sophistication, Xoshiro256++ is extremely fast, with benchmarks showing it achieves up to 2560 MB/s on ARM Cortex-A53 processors commonly found in IoT and embedded devices \cite{xoshiro_website}.
+    
+    \item \textbf{Moderate Memory Footprint}: Its 256-bit state (32 bytes) is compact enough for memory-constrained devices while providing sufficient complexity for high-quality randomness.
+    
+    \item \textbf{Energy Efficiency}: The algorithm uses simple bitwise operations (XOR, shifts, rotations) that are energy-efficient on most hardware architectures, making it suitable for battery-powered devices \cite{prng_iot}.
+\end{itemize}
+
+\subsubsection{Implementation Details}
+
+Our implementation of Xoshiro256++ follows the object-oriented approach with a similar interface to the LCG:
+
+\begin{lstlisting}[language=C++, caption=Xoshiro256++ Implementation (Header)]
+class Xoshiro256pp {
+private:
+    uint64_t state[4];
+    
+    // Helper function for rotating bits left
+    static inline uint64_t rotl(const uint64_t x, int k) {
+        return (x << k) | (x >> (64 - k));
+    }
+
+public:
+    // Constructor initializes with a seed
+    Xoshiro256pp(uint64_t seed = 123456789);
+    
+    // Generate a random 64-bit unsigned integer
+    uint64_t next();
+    
+    // Generate a random number with specified bit length
+    void randbits(mpz_t result, size_t bits);
+    
+    // Reset the generator to a specific seed
+    void seed(uint64_t new_seed);
+};
+\end{lstlisting}
+
+The state transition and output generation are implemented in the `next()` method:
+
+\begin{lstlisting}[language=C++, caption=Xoshiro256++ Implementation (Core Function)]
+uint64_t Xoshiro256pp::next() {
+    // Calculate output value
+    const uint64_t result = rotl(state[0] + state[3], 23) + state[0];
+    
+    // Update state
+    const uint64_t t = state[1] << 17;
+    
+    state[2] ^= state[0];
+    state[3] ^= state[1];
+    state[1] ^= state[2];
+    state[0] ^= state[3];
+    
+    state[2] ^= t;
+    state[3] = rotl(state[3], 45);
+    
+    return result;
+}
+\end{lstlisting}
+
+The `randbits()` method is similar to the LCG implementation but leverages the higher-quality randomness of Xoshiro256++.
+
+\subsection{Implementation of Arbitrary-Precision Random Number Generation}
+
+For both PRNGs, generating numbers of arbitrary precision (up to 4096 bits) requires additional handling beyond what the basic algorithms provide. We use the GMP library for this purpose \cite{granlund2012}:
+
+\begin{enumerate}
+    \item We first determine how many 64-bit blocks are needed to represent a number of the desired bit length.
+    
+    \item We call the PRNG's `next()` method repeatedly to fill these blocks.
+    
+    \item We use GMP's `mpz_import` function to convert the array of 64-bit blocks into a single arbitrary-precision integer.
+    
+    \item We ensure the result has exactly the requested number of bits by setting the most significant bit and masking off any excess bits.
+\end{enumerate}
+
+This approach allows us to generate uniformly distributed random numbers of any bit length up to the capacity of the system's memory, maintaining efficiency while extending the capability to large numbers required for cryptographic applications.
+
+\subsection{Performance Considerations in Resource-Constrained Environments}
+
+The two PRNGs have different performance characteristics, particularly relevant when deployed in resource-constrained systems:
+
+\begin{itemize}
+    \item \textbf{LCG}: Is simpler and requires less state (64 bits vs. 256 bits), resulting in a smaller memory footprint. It performs fewer operations per generation, potentially offering better energy efficiency for extremely constrained devices. However, it has known statistical weaknesses, especially in the lower bits \cite{knuth1997}. These weaknesses are partially mitigated in our implementation by using only the higher-quality bits and combining multiple outputs for large numbers.
+    
+    \item \textbf{Xoshiro256++}: Offers superior statistical properties and a much longer period, making it more suitable for applications requiring high-quality randomness. While it requires slightly more memory and computational resources than LCG, it remains highly efficient compared to other high-quality PRNGs. According to benchmarks by Vigna \cite{xoshiro_website}, Xoshiro256++ demonstrates excellent performance on ARM architectures common in IoT devices, with generation speeds comparable to simpler generators.
+\end{itemize}
+
+For resource-constrained systems, the choice between these generators involves a trade-off:
+
+\begin{itemize}
+    \item For extremely limited devices where every byte of memory and cycle of CPU matters, LCG may be preferable due to its minimal footprint.
+    
+    \item For devices with slightly more resources where randomness quality is important, Xoshiro256++ offers a better balance of quality and efficiency \cite{prng_iot}.
+\end{itemize}
+
+The detailed timing and energy consumption comparisons for generating random numbers of various bit lengths are presented in the Results section.
+
+\subsection{Code Snippets and Implementation Optimizations}
+
+Below are key sections of the implementation for both generators, highlighting optimizations for resource-constrained environments:
+
+\begin{lstlisting}[language=C++, caption=LCG Seeding Implementation]
+void LinearCongruentialGenerator::seed(uint64_t new_seed) {
+    // Ensure non-zero seed
+    if (new_seed == 0) {
+        new_seed = 12345;
+    }
+    state = new_seed;
+    
+    // Discard first few values to mix the state
+    for (int i = 0; i < 10; i++) {
+        next();
+    }
+}
+\end{lstlisting}
+
+\begin{lstlisting}[language=C++, caption=Xoshiro256++ Seeding Implementation]
+void Xoshiro256pp::seed(uint64_t new_seed) {
+    // Initialize state using SplitMix64 algorithm
+    uint64_t z = new_seed;
+    for (int i = 0; i < 4; i++) {
+        z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9ULL;
+        z = (z ^ (z >> 27)) * 0x94d049bb133111ebULL;
+        z = z ^ (z >> 31);
+        state[i] = z;
+    }
+}
+\end{lstlisting}
+
+Both seeding implementations incorporate techniques to enhance the quality of initialization, ensuring good randomness even with simple seed values—a consideration particularly important in embedded systems where high-quality entropy sources may be limited \cite{embedded_prng}.
+
+\subsubsection{Analysis of Generated Results}
+
+The table below contains placeholders for the performance results that will be filled in after running the experiments. It will show the time required to generate random numbers of different bit sizes using both PRNGs, as well as metrics related to memory usage and energy consumption where applicable.
+
+\begin{table}[H]
+\centering
+\caption{Time to Generate Random Numbers of Various Bit Lengths}
+\label{tab:prng_perf}
+\begin{tabular}{@{}lrr@{}}
+\toprule
+\textbf{Bit Length} & \textbf{LCG Time (ms)} & \textbf{Xoshiro256++ Time (ms)} \\
+\midrule
+40 bits     & [FILL IN] & [FILL IN] \\
+56 bits     & [FILL IN] & [FILL IN] \\
+80 bits     & [FILL IN] & [FILL IN] \\
+128 bits    & [FILL IN] & [FILL IN] \\
+168 bits    & [FILL IN] & [FILL IN] \\
+224 bits    & [FILL IN] & [FILL IN] \\
+256 bits    & [FILL IN] & [FILL IN] \\
+512 bits    & [FILL IN] & [FILL IN] \\
+1024 bits   & [FILL IN] & [FILL IN] \\
+2048 bits   & [FILL IN] & [FILL IN] \\
+4096 bits   & [FILL IN] & [FILL IN] \\
+\bottomrule
+\end{tabular}
+\end{table} 

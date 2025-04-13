@@ -1,0 +1,67 @@
+\section{Introduction}
+
+Prime numbers form the cornerstone of modern cryptographic systems. Their unique property of being divisible only by 1 and themselves makes them invaluable for creating secure encryption protocols. From RSA encryption to elliptic curve cryptography, prime numbers enable the security infrastructure that protects much of our digital lives \cite{rivest1978, crandall2005}.
+
+In cryptographic applications, we typically need prime numbers that are hundreds or even thousands of bits in length. For example, Brazilian digital signature standards require the use of 2048-bit prime numbers, in alignment with NIST recommendations \cite{baillie_performance}. Generating such large prime numbers involves two fundamental challenges:
+
+\begin{enumerate}
+    \item \textbf{Random Number Generation}: First, we need to generate large random numbers that serve as candidates for primality testing. The quality of these candidates directly influences the efficiency of the prime number generation process.
+    
+    \item \textbf{Primality Testing}: Once we have candidate numbers, we need efficient algorithms to verify whether these numbers are indeed prime. These algorithms must balance accuracy with computational efficiency.
+\end{enumerate}
+
+In resource-constrained environments, such as embedded systems and Internet of Things (IoT) devices, these challenges are further compounded by hardware limitations including restricted computational capacity, limited memory, and stringent energy consumption constraints \cite{resource_constrained, prng_iot}. Thus, selecting appropriate algorithms for these tasks requires careful consideration of both theoretical properties and practical performance characteristics.
+
+This document presents a comprehensive exploration of these two critical components, with a specific focus on their applicability in resource-constrained systems. We have implemented and analyzed two pseudo-random number generation algorithms and two primality testing methods, evaluating their performance in terms of both computational efficiency and energy consumption. Our implementation is structured as a modular, well-documented codebase that emphasizes both performance and correctness.
+
+\subsection{Project Objectives}
+
+The main objectives of this project are:
+
+\begin{itemize}
+    \item To implement and compare two pseudo-random number generators (PRNGs)—the Linear Congruential Generator (LCG) and Xoshiro256++—capable of generating numbers up to 4096 bits in size
+    
+    \item To implement and compare two primality testing algorithms—Miller-Rabin and Baillie-PSW—evaluating their efficacy and efficiency in identifying prime numbers
+    
+    \item To analyze the performance characteristics of these algorithms, particularly focusing on execution time and, where applicable, energy consumption in resource-constrained environments
+    
+    \item To develop a structured, modular codebase that can be extended or integrated into other cryptographic applications, especially those targeting embedded systems and IoT devices
+    
+    \item To provide empirical evidence for algorithm selection in practical cryptographic implementations, considering the trade-offs between performance, reliability, and resource utilization
+\end{itemize}
+
+\subsection{Significance in Resource-Constrained Systems}
+
+The proliferation of IoT devices and embedded systems has created a significant demand for cryptographic operations in environments with limited computational resources, memory, and energy \cite{embedded_prng}. In such contexts, the efficiency of prime number generation and testing becomes critical. While extensive research exists on these algorithms in general-purpose computing environments, their behavior in resource-constrained systems warrants specialized investigation.
+
+Our research contributes to this domain by:
+
+\begin{itemize}
+    \item Evaluating the memory footprint and computational efficiency of selected algorithms
+    
+    \item Measuring energy consumption patterns, which are particularly relevant for battery-powered devices
+    
+    \item Providing implementation strategies that optimize these algorithms for restricted environments
+    
+    \item Offering quantitative data to guide algorithm selection based on specific resource constraints
+\end{itemize}
+
+\subsection{Document Structure}
+
+This document is organized as follows:
+
+\begin{itemize}
+    \item \textbf{Section 2} describes the repository structure and the organization of the codebase
+    
+    \item \textbf{Section 3} focuses on random number generation, detailing the algorithms implemented and their theoretical foundations, with particular attention to their suitability for resource-constrained systems
+    
+    \item \textbf{Section 4} explores primality testing algorithms, their mathematical basis, and implementation details, emphasizing optimizations for efficiency
+    
+    \item \textbf{Section 5} explains the experimental methodology used to evaluate algorithm performance, including our approach to measuring energy consumption
+    
+    \item \textbf{Section 6} presents the results of our experiments and comparative analysis, providing empirical data on execution time, memory usage, and energy efficiency
+    
+    \item \textbf{Section 7} concludes the document, synthesizes our findings, and suggests potential future work
+\end{itemize}
+
+All implementations are written in C++ and make use of the GNU Multiple Precision Arithmetic Library (GMP) for handling large integers efficiently \cite{granlund2012}. The complete source code is available in the repository and has been documented extensively to facilitate understanding and future development. 

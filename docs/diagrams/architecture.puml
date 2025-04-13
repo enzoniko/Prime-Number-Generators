@@ -1,0 +1,77 @@
+@startuml Architecture
+
+package "PRNG" {
+  class PRNGInterface {
+    +randbits(mpz_t result, int k)
+  }
+  
+  class LCG {
+    -uint64_t state
+    -uint64_t a
+    -uint64_t c
+    +LCG(uint64_t seed)
+    +next_u64()
+    +randbits(mpz_t result, int k)
+  }
+  
+  class Xoshiro256pp {
+    -uint64_t s[4]
+    -void seed_state(uint64_t seed)
+    +Xoshiro256pp(uint64_t seed)
+    +next_u64()
+    +randbits(mpz_t result, int k)
+  }
+}
+
+package "PrimalityTesting" {
+  class PrimalityTester {
+    +{static} bool is_prime(mpz_t n)
+  }
+  
+  class MillerRabin {
+    +{static} bool test(mpz_t n, int k)
+  }
+  
+  class BailliePSW {
+    +{static} bool test(mpz_t n)
+    -{static} bool strong_lucas_test(mpz_t n)
+  }
+}
+
+package "Utils" {
+  class TimingUtils {
+    +{static} double measure_time(function<void()> func)
+  }
+  
+  class MPZUtils {
+    +{static} void print_mpz(mpz_t n)
+    +{static} void generate_random_odd(mpz_t result, int bits)
+  }
+}
+
+package "Applications" {
+  class PRNGBenchmark {
+    +run_benchmarks()
+  }
+  
+  class PrimalityBenchmark {
+    +run_benchmarks()
+  }
+  
+  class PrimeFinder {
+    +find_prime(int bits)
+  }
+}
+
+PRNGInterface <|-- LCG
+PRNGInterface <|-- Xoshiro256pp
+
+PrimalityTester --> MillerRabin
+PrimalityTester --> BailliePSW
+
+PrimeFinder --> PRNGInterface
+PrimeFinder --> PrimalityTester
+PRNGBenchmark --> PRNGInterface
+PrimalityBenchmark --> PrimalityTester
+
+@enduml 

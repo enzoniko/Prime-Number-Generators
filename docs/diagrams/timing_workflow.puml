@@ -1,0 +1,109 @@
+@startuml Timing Experiment Workflow
+
+title "RISC-V Timing Experiment Workflow"
+
+skinparam backgroundColor white
+skinparam style strictuml
+
+actor "User" as User
+participant "run_experiments.sh" as MainScript
+participant "timing_experiment.sh" as TimingScript
+participant "setup_riscv.sh" as SetupScript
+participant "measure_prng_time" as PRNGMeasure
+participant "measure_primality_time" as PrimalityMeasure
+participant "LCG / Xoshiro" as PRNG
+participant "Miller-Rabin / Baillie-PSW" as PrimalityTest
+database "Timing CSV Files" as TimingCSV
+participant "analyze_results.py" as Analysis
+
+== Setup Environment ==
+
+User -> SetupScript : Execute with options
+activate SetupScript
+SetupScript -> SetupScript : Set CPU governor to performance
+SetupScript -> SetupScript : Stop non-essential services
+SetupScript -> SetupScript : Disable WiFi (optional)
+SetupScript --> User : Environment prepared
+deactivate SetupScript
+
+== Run Timing Experiments ==
+
+User -> MainScript : Execute with timing options
+activate MainScript
+MainScript -> MainScript : Parse arguments
+MainScript -> MainScript : Load configuration
+MainScript -> TimingScript : Call with parameters
+activate TimingScript
+
+TimingScript -> TimingScript : Parse arguments
+TimingScript -> TimingScript : Determine algorithms and bit sizes
+
+loop for each PRNG algorithm
+  TimingScript -> TimingScript : Create output CSV file
+  
+  loop for each bit size
+    TimingScript -> TimingScript : Log progress
+    
+    loop for each iteration
+      TimingScript -> PRNGMeasure : Execute with algorithm and bit size
+      activate PRNGMeasure
+      
+      PRNGMeasure -> PRNGMeasure : Initialize algorithm
+      PRNGMeasure -> PRNGMeasure : Run warm-up iterations
+      PRNGMeasure -> PRNGMeasure : Start timing
+      PRNGMeasure -> PRNG : Generate random number
+      activate PRNG
+      PRNG --> PRNGMeasure : Return result
+      deactivate PRNG
+      PRNGMeasure -> PRNGMeasure : End timing
+      PRNGMeasure --> TimingScript : Return elapsed time
+      deactivate PRNGMeasure
+      
+      TimingScript -> TimingCSV : Write result
+    end
+  end
+end
+
+loop for each Primality Test algorithm
+  TimingScript -> TimingScript : Create output CSV file
+  
+  loop for each bit size
+    TimingScript -> TimingScript : Log progress
+    
+    loop for each iteration
+      TimingScript -> PrimalityMeasure : Execute with algorithm and bit size
+      activate PrimalityMeasure
+      
+      PrimalityMeasure -> PrimalityMeasure : Initialize algorithm
+      PrimalityMeasure -> PrimalityMeasure : Generate test prime
+      PrimalityMeasure -> PrimalityMeasure : Run warm-up iterations
+      PrimalityMeasure -> PrimalityMeasure : Start timing
+      PrimalityMeasure -> PrimalityTest : Test primality
+      activate PrimalityTest
+      PrimalityTest --> PrimalityMeasure : Return result
+      deactivate PrimalityTest
+      PrimalityMeasure -> PrimalityMeasure : End timing
+      PrimalityMeasure --> TimingScript : Return elapsed time
+      deactivate PrimalityMeasure
+      
+      TimingScript -> TimingCSV : Write result
+    end
+  end
+end
+
+TimingScript --> MainScript : Experiments completed
+deactivate TimingScript
+MainScript --> User : Timing experiments done
+deactivate MainScript
+
+== Analyze Results ==
+
+User -> Analysis : Execute with timing option
+activate Analysis
+Analysis -> TimingCSV : Read data
+Analysis -> Analysis : Calculate statistics
+Analysis -> Analysis : Generate plot
+Analysis --> User : Show analysis results
+deactivate Analysis
+
+@enduml 

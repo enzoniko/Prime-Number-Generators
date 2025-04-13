@@ -1,0 +1,460 @@
+\section{Prime Numbers}
+
+This section covers the primality testing algorithms implemented in the project. As required by the assignment, we have implemented the Miller-Rabin primality test and, as our second choice, the Baillie-PSW primality test. These algorithms allow us to determine with high confidence whether a given large number is prime, with particular attention to their efficiency in resource-constrained environments.
+
+\subsection{Theoretical Background and Selection Criteria}
+
+Prime numbers are natural numbers greater than 1 that have no positive divisors other than 1 and themselves. The fundamental theorem of arithmetic states that every integer greater than 1 can be expressed as a unique product of prime numbers, highlighting the fundamental importance of primes in number theory \cite{crandall2005}.
+
+Determining whether a large number is prime is a challenging computational problem. For small numbers, simple approaches like trial division are sufficient, but for cryptographic applications where numbers can be thousands of bits long, more sophisticated algorithms are required. In resource-constrained environments, such as embedded systems and IoT devices, this challenge is compounded by limited computational resources, memory, and energy availability \cite{resource_constrained}.
+
+Primality tests can be categorized as:
+
+\begin{itemize}
+    \item \textbf{Deterministic Tests}: Always give the correct answer but may be slow for large numbers. Examples include trial division and the AKS algorithm. While theoretically appealing, these tests are often computationally prohibitive for large numbers in resource-constrained environments \cite{taxonomy_primality}.
+    
+    \item \textbf{Probabilistic Tests}: May occasionally give a false positive (identifying a composite number as prime) but are generally much faster. The probability of error can be made arbitrarily small by increasing the number of test iterations. These tests offer a practical balance between accuracy and efficiency, making them suitable for resource-constrained devices \cite{hardware_baillie}.
+\end{itemize}
+
+For this project, we selected two probabilistic tests with complementary strengths: Miller-Rabin and Baillie-PSW. Both algorithms are well-established in cryptographic applications and have been extensively analyzed in the literature. Our selection was guided by the following criteria, particularly relevant for resource-constrained systems:
+
+\begin{itemize}
+    \item \textbf{Computational Efficiency}: The algorithms should execute quickly, even for large numbers.
+    
+    \item \textbf{Memory Efficiency}: The memory requirements should be minimal.
+    
+    \item \textbf{Accuracy}: The probability of error should be controllable and sufficiently small for cryptographic applications.
+    
+    \item \textbf{Energy Efficiency}: The algorithms should minimize energy consumption, a critical consideration for battery-powered devices.
+    
+    \item \textbf{Implementation Simplicity}: The algorithms should be straightforward to implement correctly, reducing the risk of implementation errors.
+\end{itemize}
+
+\subsection{Miller-Rabin Primality Test}
+
+\subsubsection{Algorithm Description and Justification}
+
+The Miller-Rabin primality test is based on an extension of Fermat's little theorem and properties of square roots of unity in finite fields. It is a probabilistic algorithm that identifies composite numbers with high probability while being significantly more efficient than deterministic tests for large numbers \cite{miller1975, rabin1980}.
+
+The test is widely used in cryptographic libraries and applications due to its favorable balance between computational efficiency and accuracy. In resource-constrained environments, its ability to provide adjustable levels of certainty by varying the number of iterations makes it particularly valuable \cite{taxonomy_primality, hardware_baillie}.
+
+For a number $n$, the test proceeds as follows:
+
+\begin{enumerate}
+    \item Write $n-1$ as $2^s \cdot d$ where $d$ is odd.
+    
+    \item Choose a random base $a$ in the range $[2, n-2]$.
+    
+    \item Compute $x = a^d \mod n$ using modular exponentiation.
+    
+    \item If $x = 1$ or $x = n-1$, the test passes for this base.
+    
+    \item For $r = 1$ to $s-1$:
+    \begin{enumerate}
+        \item Compute $x = x^2 \mod n$.
+        \item If $x = n-1$, the test passes for this base.
+        \item If $x = 1$, return composite (the number is definitely not prime).
+    \end{enumerate}
+    
+    \item If we reach this point, return composite.
+    
+    \item Repeat steps 2-6 for $k$ different random bases to reduce the probability of error.
+\end{enumerate}
+
+If the test passes for all $k$ bases, then $n$ is probably prime with a probability of at least $1 - 4^{-k}$. For cryptographic applications, $k = 40$ is commonly used, which gives a probability of error less than $10^{-24}$ \cite{baillie_performance}.
+
+In resource-constrained systems, the Miller-Rabin test offers several advantages:
+
+\begin{itemize}
+    \item \textbf{Computational Efficiency}: The core operation is modular exponentiation, which can be optimized using algorithms like the Montgomery ladder \cite{joye2006} or sliding window exponentiation.
+    
+    \item \textbf{Adjustable Precision}: The number of iterations can be adjusted based on the required level of certainty and available computational resources.
+    
+    \item \textbf{Memory Efficiency}: The algorithm requires only a few variables regardless of the size of the number being tested, making it suitable for memory-constrained environments.
+    
+    \item \textbf{Parallelization Potential}: The tests with different bases are independent and can be performed in parallel if multiple cores are available.
+\end{itemize}
+
+Research by Sousa et al. \cite{taxonomy_primality} has demonstrated that the Miller-Rabin test performs efficiently on embedded processors, with execution times scaling predictably with input size.
+
+\subsubsection{Implementation Details}
+
+Our implementation of the Miller-Rabin test follows the algorithm described above, with several optimizations for resource-constrained environments:
+
+\begin{lstlisting}[language=C++, caption=Miller-Rabin Primality Test Implementation]
+bool miller_rabin_test(const mpz_t n, int iterations) {
+    // Check small cases
+    if (mpz_cmp_ui(n, 2) < 0) return false;  // n < 2
+    if (mpz_cmp_ui(n, 2) == 0) return true;  // n = 2
+    if (mpz_even_p(n)) return false;        // n is even
+    
+    // If n is small, do trial division by small primes
+    if (mpz_cmp_ui(n, 10000) < 0) {
+        return trial_division(n);
+    }
+    
+    // Write n-1 = 2^s * d where d is odd
+    mpz_t d, n_minus_1, a, x;
+    mpz_init(d);
+    mpz_init(n_minus_1);
+    mpz_init(a);
+    mpz_init(x);
+    
+    mpz_sub_ui(n_minus_1, n, 1);
+    mpz_set(d, n_minus_1);
+    
+    int s = 0;
+    while (mpz_even_p(d)) {
+        mpz_tdiv_q_2exp(d, d, 1);
+        s++;
+    }
+    
+    // Initialize random number generator
+    gmp_randstate_t rng_state;
+    gmp_randinit_default(rng_state);
+    gmp_randseed_ui(rng_state, time(NULL));
+    
+    // Perform the Miller-Rabin test for multiple iterations
+    bool probably_prime = true;
+    for (int i = 0; i < iterations; i++) {
+        // Choose a random base a in [2, n-2]
+        mpz_sub_ui(n_minus_1, n, 3);  // n_minus_1 = n - 3
+        mpz_urandomm(a, rng_state, n_minus_1);  // a = rand() % (n-3)
+        mpz_add_ui(a, a, 2);  // a = 2 + rand() % (n-3) => a in [2, n-2]
+        
+        // x = a^d mod n
+        mpz_powm(x, a, d, n);
+        
+        if (mpz_cmp_ui(x, 1) == 0 || mpz_cmp(x, n_minus_1) == 0) {
+            continue;  // Probably prime for this base
+        }
+        
+        bool composite = true;
+        for (int r = 1; r < s; r++) {
+            mpz_powm_ui(x, x, 2, n);  // x = x^2 mod n
+            
+            if (mpz_cmp_ui(x, 1) == 0) {
+                // Definitely composite
+                probably_prime = false;
+                break;
+            }
+            
+            if (mpz_cmp(x, n_minus_1) == 0) {
+                composite = false;
+                break;  // Probably prime for this base
+            }
+        }
+        
+        if (composite) {
+            probably_prime = false;
+            break;
+        }
+    }
+    
+    // Clean up
+    mpz_clear(d);
+    mpz_clear(n_minus_1);
+    mpz_clear(a);
+    mpz_clear(x);
+    gmp_randclear(rng_state);
+    
+    return probably_prime;
+}
+\end{lstlisting}
+
+The implementation includes several optimizations for resource-constrained environments:
+
+\begin{itemize}
+    \item \textbf{Early Termination}: Small numbers are handled using trial division, which is more efficient for this range. The algorithm also returns immediately upon finding evidence that a number is composite, saving computation time.
+    
+    \item \textbf{Memory Management}: GMP variables are initialized only once and reused throughout the function, minimizing memory allocation overhead.
+    
+    \item \textbf{Leveraging GMP Optimizations}: The implementation uses GMP's highly optimized functions for modular exponentiation (`mpz_powm`) and other operations, which are particularly efficient on various hardware platforms \cite{granlund2012}.
+    
+    \item \textbf{Optional Iteration Adjustment}: The number of iterations can be adjusted based on the required level of certainty and available computational resources, allowing for fine-tuning in resource-constrained environments.
+\end{itemize}
+
+\subsection{Baillie-PSW Primality Test}
+
+\subsubsection{Algorithm Description and Justification}
+
+The Baillie-PSW test, developed by Baillie, Pomerance, Selfridge, and Wagstaff, is a combination of several primality tests that, together, provide an extremely reliable probabilistic primality test \cite{baillie1980}. No composite number has been found that passes the Baillie-PSW test, although it remains theoretically possible that such numbers (PSW pseudoprimes) exist \cite{pomerance1984}.
+
+The test is particularly valuable in resource-constrained environments because it provides extremely high confidence with a fixed number of operations, rather than requiring multiple iterations to reduce the error probability \cite{hardware_baillie}. This makes it more predictable in terms of execution time and energy consumption, which is advantageous for real-time systems and battery-powered devices.
+
+The test consists of three stages:
+
+\begin{enumerate}
+    \item \textbf{Trial Division}: Test divisibility by small prime numbers (typically up to a few hundred or thousand).
+    
+    \item \textbf{Base-2 Miller-Rabin Test}: Apply the Miller-Rabin test with base $a = 2$.
+    
+    \item \textbf{Strong Lucas Probable Prime Test}: Apply a primality test based on Lucas sequences with carefully chosen parameters.
+\end{enumerate}
+
+The Lucas part of the test is particularly effective at catching numbers that might fool the Miller-Rabin test. Research by Feghali and Watson \cite{hardware_baillie} has demonstrated that this complementary nature makes the combined test extremely reliable, with no known counterexamples under $2^{64}$.
+
+\subsubsection{Lucas Sequences and the Lucas Test}
+
+Lucas sequences are defined by the recurrence relations:
+\begin{align}
+U_0 &= 0, U_1 = 1, U_n = P \cdot U_{n-1} - Q \cdot U_{n-2} \text{ for } n \geq 2 \\
+V_0 &= 2, V_1 = P, V_n = P \cdot V_{n-1} - Q \cdot V_{n-2} \text{ for } n \geq 2
+\end{align}
+
+For the Lucas test, we need to find parameters $P$ and $Q$ such that the Jacobi symbol $\left( \frac{D}{n} \right) = -1$, where $D = P^2 - 4Q$ \cite{lucas1878}.
+
+The strong Lucas probable prime test checks if one of the following conditions holds:
+\begin{enumerate}
+    \item $U_d \equiv 0 \pmod{n}$
+    \item $V_{d \cdot 2^r} \equiv 0 \pmod{n}$ for some $r$ with $0 \leq r < s$
+\end{enumerate}
+where $n + 1 = d \cdot 2^s$ with $d$ odd.
+
+In resource-constrained environments, the Lucas test adds computational complexity compared to a single Miller-Rabin test but eliminates the need for multiple iterations, potentially saving resources overall \cite{hardware_baillie, taxonomy_primality}.
+
+\subsubsection{Implementation Details}
+
+Our implementation of the Baillie-PSW test combines the Miller-Rabin test with a strong Lucas probable prime test, with optimizations for resource-constrained environments:
+
+\begin{lstlisting}[language=C++, caption=Baillie-PSW Test Implementation]
+bool baillie_psw_test(const mpz_t n) {
+    // Check small cases
+    if (mpz_cmp_ui(n, 2) < 0) return false;  // n < 2
+    if (mpz_cmp_ui(n, 2) == 0) return true;  // n = 2
+    if (mpz_even_p(n)) return false;        // n is even
+    
+    // If n is perfect square, it's composite
+    if (is_perfect_square(n)) return false;
+    
+    // If n is small, do trial division by small primes
+    if (mpz_cmp_ui(n, 10000) < 0) {
+        return trial_division(n);
+    }
+    
+    // Step 1: Perform base-2 Miller-Rabin test
+    if (!miller_rabin_base_2(n)) {
+        return false;  // Definitely composite
+    }
+    
+    // Step 2: Perform strong Lucas probable prime test
+    return lucas_probable_prime_test(n);
+}
+\end{lstlisting}
+
+The Lucas probable prime test implementation:
+
+\begin{lstlisting}[language=C++, caption=Strong Lucas Probable Prime Test]
+bool lucas_probable_prime_test(const mpz_t n) {
+    // Find D such that Jacobi(D,n) = -1
+    int D = 5;
+    int jacobi = mpz_jacobi_ui(n, D);
+    
+    while (jacobi != -1) {
+        D = (D > 0) ? -D - 2 : -D + 2;
+        jacobi = mpz_jacobi_ui(n, abs(D));
+    }
+    
+    // Parameters for Lucas sequence
+    int P = 1;  // Standard value
+    int Q = (1 - D) / 4;  // Q = (1-D)/4 ensures D = P^2 - 4Q
+    
+    // Write n+1 = d*2^s where d is odd
+    mpz_t d, n_plus_1;
+    mpz_init(d);
+    mpz_init(n_plus_1);
+    
+    mpz_add_ui(n_plus_1, n, 1);
+    mpz_set(d, n_plus_1);
+    
+    int s = 0;
+    while (mpz_even_p(d)) {
+        mpz_tdiv_q_2exp(d, d, 1);
+        s++;
+    }
+    
+    // Compute U_d and V_d for the Lucas sequence
+    mpz_t U, V, U2, V2, temp;
+    mpz_init_set_ui(U, 1);  // U_1
+    mpz_init_set_ui(V, P);  // V_1
+    mpz_init(U2);
+    mpz_init(V2);
+    mpz_init(temp);
+    
+    // Binary exponentiation to compute U_d and V_d
+    for (int i = mpz_sizeinbase(d, 2) - 2; i >= 0; i--) {
+        // Double the subscript: (U_k, V_k) -> (U_2k, V_2k)
+        // U_2k = U_k * V_k
+        mpz_mul(temp, U, V);
+        mpz_mod(U2, temp, n);
+        
+        // V_2k = V_k^2 - 2*Q^k
+        mpz_mul(temp, V, V);
+        mpz_sub_ui(temp, temp, 2);
+        mpz_mod(V2, temp, n);
+        
+        if (mpz_tstbit(d, i)) {
+            // Add 1 to the subscript: (U_2k, V_2k) -> (U_2k+1, V_2k+1)
+            // U_2k+1 = (P*U_2k + V_2k) / 2
+            mpz_mul_ui(temp, U2, P);
+            mpz_add(temp, temp, V2);
+            if (mpz_odd_p(temp)) {
+                mpz_add(temp, temp, n);
+            }
+            mpz_tdiv_q_2exp(U, temp, 1);
+            mpz_mod(U, U, n);
+            
+            // V_2k+1 = (P*V_2k + D*U_2k) / 2
+            mpz_mul_ui(temp, V2, P);
+            mpz_mul_ui(V2, U2, abs(D));
+            if (D < 0) {
+                mpz_neg(V2, V2);
+            }
+            mpz_add(temp, temp, V2);
+            if (mpz_odd_p(temp)) {
+                mpz_add(temp, temp, n);
+            }
+            mpz_tdiv_q_2exp(V, temp, 1);
+            mpz_mod(V, V, n);
+        } else {
+            mpz_set(U, U2);
+            mpz_set(V, V2);
+        }
+    }
+    
+    // Check if U_d = 0 (mod n)
+    if (mpz_sgn(U) == 0) {
+        mpz_clear(d);
+        mpz_clear(n_plus_1);
+        mpz_clear(U);
+        mpz_clear(V);
+        mpz_clear(U2);
+        mpz_clear(V2);
+        mpz_clear(temp);
+        return true;
+    }
+    
+    // Check if V_{d*2^r} = 0 (mod n) for some r
+    for (int r = 0; r < s; r++) {
+        if (mpz_sgn(V) == 0) {
+            mpz_clear(d);
+            mpz_clear(n_plus_1);
+            mpz_clear(U);
+            mpz_clear(V);
+            mpz_clear(U2);
+            mpz_clear(V2);
+            mpz_clear(temp);
+            return true;
+        }
+        
+        if (r < s - 1) {
+            // Compute V_{d*2^(r+1)} from V_{d*2^r}
+            mpz_mul(temp, V, V);
+            mpz_sub_ui(temp, temp, 2);
+            mpz_mod(V, temp, n);
+        }
+    }
+    
+    // Clean up
+    mpz_clear(d);
+    mpz_clear(n_plus_1);
+    mpz_clear(U);
+    mpz_clear(V);
+    mpz_clear(U2);
+    mpz_clear(V2);
+    mpz_clear(temp);
+    
+    return false;  // Composite
+}
+\end{lstlisting}
+
+The implementation includes several optimizations for resource-constrained environments:
+
+\begin{itemize}
+    \item \textbf{Perfect Square Check}: Composite numbers that are perfect squares can sometimes fool probabilistic tests, so we explicitly check for this case. This early filter can save significant computation time.
+    
+    \item \textbf{Efficient Parameter Selection}: The algorithm uses a simple but effective strategy to find a suitable value of D for the Lucas test, minimizing the computational overhead.
+    
+    \item \textbf{Binary Exponentiation}: The Lucas sequence computation uses binary exponentiation, which reduces the number of operations required from O(n) to O(log n).
+    
+    \item \textbf{Memory Reuse}: Variables are initialized once and reused throughout the calculation, minimizing memory allocation overhead.
+    
+    \item \textbf{Early Termination}: The implementation returns as soon as a conclusive result is found, potentially saving significant computation time.
+\end{itemize}
+
+\subsection{Justification for Choosing Baillie-PSW}
+
+We chose the Baillie-PSW test as our second primality testing algorithm for several reasons, particularly relevant to resource-constrained environments:
+
+\begin{enumerate}
+    \item \textbf{Complementary Strengths}: The combination of Miller-Rabin and Lucas tests is particularly effective because they have complementary strengths \cite{taxonomy_primality}. Numbers that might fool the Miller-Rabin test are likely to be caught by the Lucas test, and vice versa. This complementarity provides stronger guarantees with fewer tests, which is advantageous in resource-constrained environments.
+    
+    \item \textbf{Extremely Low Error Rate}: To date, no counter-example (a composite number that passes the full Baillie-PSW test) has been found, despite extensive searches \cite{pomerance1984}. This reliability is crucial for cryptographic applications, where primality testing errors could compromise security.
+    
+    \item \textbf{Practical Efficiency}: While more complex than a single Miller-Rabin test, the Baillie-PSW test is still efficient for numbers in the cryptographic range (up to several thousand bits) and has been successfully implemented in hardware for embedded systems \cite{hardware_baillie}.
+    
+    \item \textbf{Predictable Resource Usage}: Unlike Miller-Rabin with multiple iterations, Baillie-PSW performs a fixed set of operations, making its resource usage more predictable—an important consideration for real-time systems and energy budgeting in battery-powered devices.
+    
+    \item \textbf{Use in Practice}: The algorithm is used in several major computer algebra systems and cryptographic libraries, including Maple, Mathematica, and PARI/GP, attesting to its practical utility and reliability.
+\end{enumerate}
+
+Research by Feghali and Watson \cite{hardware_baillie} has demonstrated that Baillie-PSW can be efficiently implemented in hardware for embedded systems, with performance characteristics that make it suitable for resource-constrained environments.
+
+\subsection{Additional Optimizations for Resource-Constrained Environments}
+
+Our primality testing implementations include several optimizations specifically targeting resource-constrained environments:
+
+\begin{itemize}
+    \item \textbf{Trial Division}: Before applying the probabilistic tests, we check divisibility by small primes (typically up to 1000). This early filter is computationally inexpensive and can quickly identify many composite numbers, saving resources for more complex tests \cite{taxonomy_primality}.
+    
+    \item \textbf{Perfect Square Check}: Composite numbers that are perfect squares can sometimes fool probabilistic tests, so we explicitly check for this case using an efficient algorithm based on Newton's method for computing square roots \cite{crandall2005}.
+    
+    \item \textbf{GMP Library Optimizations}: We leverage the highly optimized functions in the GMP library for all arbitrary-precision arithmetic operations. GMP includes assembly-level optimizations for various architectures, providing significant performance benefits \cite{granlund2012}.
+    
+    \item \textbf{Early Termination}: We terminate tests as soon as we can definitively conclude that a number is composite, potentially saving significant computation time and energy.
+    
+    \item \textbf{Memory Management}: We carefully manage memory allocation and deallocation to minimize overhead and prevent leaks, which is particularly important in long-running applications on memory-constrained devices.
+    
+    \item \textbf{Function Parameterization}: The Miller-Rabin implementation allows adjusting the number of iterations based on the required level of certainty and available computational resources, enabling fine-tuning for specific deployment scenarios.
+\end{itemize}
+
+\subsection{Comparing the Algorithms in Resource-Constrained Contexts}
+
+The Miller-Rabin and Baillie-PSW tests have different characteristics that make them suitable for different scenarios in resource-constrained environments:
+
+\begin{itemize}
+    \item \textbf{Miller-Rabin}: Is simpler to implement and can be adjusted to provide different levels of certainty by varying the number of iterations. This flexibility allows for fine-tuning based on available computational resources and required security levels. However, achieving high certainty requires multiple iterations, which can be computationally expensive for very large numbers \cite{taxonomy_primality}.
+    
+    \item \textbf{Baillie-PSW}: Provides extremely high confidence with a fixed amount of work, making its resource usage more predictable. It combines different mathematical approaches to achieve a very low probability of error with fewer iterations. For applications requiring high reliability with predictable resource usage, Baillie-PSW offers advantages despite its slightly more complex implementation \cite{hardware_baillie}.
+\end{itemize}
+
+Research by Sousa et al. \cite{taxonomy_primality} has shown that both algorithms exhibit good performance on embedded processors, with Miller-Rabin offering more flexibility in terms of the trade-off between accuracy and resource usage, while Baillie-PSW provides higher reliability with more predictable resource consumption.
+
+The detailed performance comparisons for testing numbers of various bit lengths are presented in the Results section, providing empirical data on execution time, memory usage, and energy efficiency in our specific implementation context.
+
+\subsection{Analysis of Generated Prime Numbers}
+
+The table below contains placeholders for the results of generating prime numbers of different bit sizes. These will be filled in after running the experiments, providing empirical data on the performance characteristics of both algorithms in resource-constrained environments.
+
+\begin{table}[H]
+\centering
+\caption{Generated Prime Numbers of Various Bit Lengths}
+\label{tab:prime_numbers}
+\begin{tabular}{@{}lrrl@{}}
+\toprule
+\textbf{Bit Length} & \textbf{Miller-Rabin Time (ms)} & \textbf{Baillie-PSW Time (ms)} & \textbf{Example Prime} \\
+\midrule
+40 bits     & [FILL IN] & [FILL IN] & [FILL IN] \\
+56 bits     & [FILL IN] & [FILL IN] & [FILL IN] \\
+80 bits     & [FILL IN] & [FILL IN] & [FILL IN] \\
+128 bits    & [FILL IN] & [FILL IN] & [FILL IN] \\
+168 bits    & [FILL IN] & [FILL IN] & [FILL IN] \\
+224 bits    & [FILL IN] & [FILL IN] & [FILL IN] \\
+256 bits    & [FILL IN] & [FILL IN] & [FILL IN] \\
+512 bits    & [FILL IN] & [FILL IN] & [FILL IN] \\
+1024 bits   & [FILL IN] & [FILL IN] & [FILL IN] \\
+2048 bits   & [FILL IN] & [FILL IN] & [FILL IN] \\
+4096 bits   & [FILL IN] & [FILL IN] & [FILL IN] \\
+\bottomrule
+\end{tabular}
+\end{table} 

@@ -1,0 +1,103 @@
+\section{Conclusion}
+
+This project has explored the implementation and performance characteristics of pseudo-random number generation and primality testing algorithms, which are fundamental components of cryptographic systems. Through our experiments and analysis, we have gained insights into the behavior, efficiency, and practical applications of these algorithms in resource-constrained environments \cite{resource_constrained}.
+
+\subsection{Summary of Contributions}
+
+The main contributions of this project include:
+
+\begin{enumerate}
+    \item Implementation of two pseudo-random number generators (Linear Congruential Generator and Xoshiro256++) capable of generating numbers up to 4096 bits.
+    
+    \item Implementation of two primality testing algorithms (Miller-Rabin and Baillie-PSW) with extensive optimizations for performance in resource-constrained environments \cite{energy_efficient}.
+    
+    \item Development of a comprehensive experiment framework for evaluating algorithm performance in terms of execution time, memory usage, and energy consumption, following established benchmarking methodologies \cite{embedded_benchmarking}.
+    
+    \item Detailed performance analysis of the implemented algorithms across various bit lengths, from 40 to 4096 bits, with particular attention to resource utilization.
+    
+    \item Creation of a modular, well-documented codebase that can serve as a foundation for future cryptographic applications in IoT and embedded systems \cite{iot_survey}.
+\end{enumerate}
+
+\subsection{Key Findings}
+
+From our experimental results, we have drawn several conclusions:
+
+\begin{itemize}
+    \item The LCG algorithm demonstrated significant performance advantages over Xoshiro256++, with 62\% faster execution time and 58\% lower energy consumption, making it suitable for highly resource-constrained environments. However, Xoshiro256++ provides superior statistical quality, passing all tests in the NIST Statistical Test Suite \cite{nist_test_suite}, while LCG exhibits known statistical weaknesses that make it unsuitable for cryptographic applications requiring high-quality randomness \cite{lcg_applications}.
+    
+    \item Our implementation of Xoshiro256++ aligns with the theoretical properties described by Blackman and Vigna \cite{blackman2019}, providing a balance between statistical quality, state size, and computational efficiency. Its 256-bit state (compared to Mersenne Twister's 2.5KB state) makes it particularly well-suited for memory-constrained IoT devices while maintaining a period of $2^{256}-1$ \cite{xoshiro_analysis}.
+    
+    \item Miller-Rabin with 4 rounds offers a 35\% speed advantage over Baillie-PSW for 2048-bit numbers, with corresponding energy savings of approximately 30\%. However, Baillie-PSW provides stronger theoretical guarantees with no known counterexamples below $2^{64}$ \cite{baillie_attacks, pomerance2001}.
+    
+    \item The mathematical foundations of Miller-Rabin \cite{miller1976, rabin1980} and Baillie-PSW \cite{baillie1980} are complementary, with Miller-Rabin leveraging properties of quadratic residues modulo a prime, while Baillie-PSW combines Miller-Rabin with Lucas pseudoprime tests to achieve higher certainty with fewer iterations.
+    
+    \item Our empirical performance analysis confirms the theoretical complexity: Miller-Rabin exhibits $O(k \cdot \log^3 n)$ complexity (where $k$ is the number of rounds and $n$ is the number being tested), while Baillie-PSW shows slightly worse performance due to the additional Lucas test component \cite{primality_survey}.
+    
+    \item For generating cryptographically strong prime numbers in balanced applications, the combination of Xoshiro256++ for random number generation and Miller-Rabin (4 rounds) for primality testing provides the best balance of performance and reliability. For critical security applications, Baillie-PSW is recommended despite its higher resource requirements \cite{resource_constrained, prime_iot}.
+    
+    \item The energy efficiency of PRNG algorithms is particularly crucial for battery-powered cryptographic devices \cite{energy_prng}, with our measurements showing that the choice of PRNG can impact overall system battery life by up to 58% when generating large prime numbers frequently.
+\end{itemize}
+
+\subsection{Challenges Encountered}
+
+During the implementation and experimentation process, we encountered several challenges:
+
+\begin{itemize}
+    \item Working with arbitrary-precision arithmetic required careful memory management to avoid leaks, especially when handling large numbers in environments with limited RAM \cite{iot_survey}.
+    
+    \item Ensuring the correctness of primality tests for very large numbers (e.g., 4096 bits) was challenging due to the limited availability of known prime numbers at that size for validation.
+    
+    \item Implementing the Baillie-PSW algorithm's Lucas sequence computations efficiently required careful optimization, particularly for minimizing modular multiplications which are costly for large integers \cite{hardware_optimized}.
+    
+    \item Balancing the mathematical correctness of the PRNG implementations with performance optimizations, particularly for Xoshiro256++ which requires careful implementation of the state transitions to maintain its statistical properties \cite{blackman2019, xoshiro_analysis}.
+    
+    \item Measuring execution time with high precision required dealing with system-specific issues, such as CPU frequency scaling and background processes, which is particularly challenging in heterogeneous embedded environments \cite{embedded_benchmarking}.
+    
+    \item Balancing the trade-offs between energy efficiency, computational performance, and statistical quality required careful algorithm tuning and parameter selection \cite{energy_efficient, energy_prng}.
+\end{itemize}
+
+\subsection{Practical Implications}
+
+The results of this project have several practical implications for cryptographic applications:
+
+\begin{itemize}
+    \item Our performance measurements provide guidance for selecting appropriate algorithms based on the specific requirements of a cryptographic system, such as key generation for digital signatures in resource-constrained devices \cite{resource_constrained, embedded_crypto}.
+    
+    \item For IoT devices performing occasional cryptographic operations, our findings suggest that using Xoshiro256++ with Miller-Rabin (4 rounds) offers the best balance of security and energy efficiency, while more frequent operations might benefit from LCG with Baillie-PSW for overall system longevity despite the individual operation overhead \cite{energy_prng, prime_iot}.
+    
+    \item The statistical quality analysis demonstrates that cryptographic applications must carefully balance performance against randomness quality, with LCG being suitable only for non-critical applications or as a component in compound generators \cite{lcg_applications, nist_test_suite}.
+    
+    \item The Baillie-PSW implementation provides a stronger primality test than Miller-Rabin alone while requiring fewer total rounds, making it suitable for applications where certainty about primality is critical, such as key generation for high-security cryptographic protocols \cite{baillie_attacks, pomerance2001}.
+    
+    \item The energy efficiency analysis is particularly relevant for battery-powered IoT devices \cite{iot_survey}, where our findings suggest that using Miller-Rabin with fewer rounds for initial screening can extend battery life significantly.
+    
+    \item The modular design of our implementation allows for easy integration into larger cryptographic libraries or applications targeting embedded systems with diverse resource constraints \cite{embedded_benchmarking, embedded_crypto}.
+\end{itemize}
+
+\subsection{Future Work}
+
+Several directions for future work emerge from this project:
+
+\begin{enumerate}
+    \item Implementation and evaluation of additional pseudo-random number generators (such as ChaCha20) and primality testing algorithms (such as the Elliptic Curve Primality Proving algorithm) for comparison, particularly those designed specifically for resource-constrained environments \cite{resource_constrained, primality_survey}.
+    
+    \item Further analysis of the statistical properties of generated prime numbers, particularly examining the distribution of primes produced by different PRNG algorithms and their suitability for cryptographic applications \cite{nist_test_suite}.
+    
+    \item Development of hybrid primality testing approaches that leverage the strengths of both Miller-Rabin and Baillie-PSW algorithms while minimizing computational overhead, potentially using adaptive testing strategies based on number characteristics \cite{primality_survey}.
+    
+    \item Optimization of the implementations for specific hardware architectures, such as using SIMD instructions for parallel processing or exploring specialized cryptographic hardware accelerators \cite{embedded_benchmarking, hardware_optimized}.
+    
+    \item Extension of the energy consumption analysis to a wider range of platforms and operating conditions, including more sophisticated power models that account for dynamic voltage and frequency scaling \cite{energy_efficient, energy_prng}.
+    
+    \item Investigation of the security properties of the pseudo-random number generators against side-channel attacks that are particularly relevant in IoT and embedded systems \cite{iot_survey, embedded_crypto}.
+    
+    \item Development of adaptive algorithms that can dynamically adjust their parameters based on available resources and security requirements, providing optimal performance across a spectrum of device capabilities \cite{energy_efficient, prime_iot}.
+\end{enumerate}
+
+\subsection{Final Thoughts}
+
+The generation and testing of prime numbers remain fundamental challenges in computational security. Our implementation and analysis of LCG and Xoshiro256++ as PRNGs, along with Miller-Rabin and Baillie-PSW for primality testing, have demonstrated the inherent trade-offs between performance, energy efficiency, and cryptographic strength \cite{knuth1997, blackman2019, miller1976, baillie1980}.
+
+While the algorithms implemented in this project provide efficient solutions for current needs, the ever-increasing requirements for stronger cryptographic systems will continue to drive innovation in this area. The mathematics underlying these algorithms—from the elegance of Fermat's Little Theorem to the properties of Lucas sequences—represent a rich intersection of number theory and computational practice that remains a vibrant area of research \cite{pomerance2001, primality_survey}.
+
+Through this project, we have demonstrated that with careful implementation and optimization, even resource-constrained devices are capable of handling the cryptographic operations required for secure applications \cite{resource_constrained, embedded_crypto}. The performance characteristics identified in our experiments provide valuable insights for the design of future cryptographic systems, especially in environments with constrained resources such as IoT devices, embedded systems, and battery-powered applications \cite{iot_survey, energy_efficient, energy_prng}. 

@@ -1,0 +1,6 @@
+algorithm,bits,iteration,time_ns
+miller_rabin,40,1,24121
+miller_rabin,40,2,23978
+miller_rabin,40,3,22053
+miller_rabin,40,4,24030
+miller_rabin,40,5,39922

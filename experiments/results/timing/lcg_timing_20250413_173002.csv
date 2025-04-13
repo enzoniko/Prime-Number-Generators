@@ -1,0 +1,6 @@
+algorithm,bits,iteration,time_ns
+lcg,40,1,124
+lcg,40,2,74
+lcg,40,3,77
+lcg,40,4,77
+lcg,40,5,89

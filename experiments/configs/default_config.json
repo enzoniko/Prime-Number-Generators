@@ -1,0 +1,36 @@
+{
+    "general": {
+        "seed": 12345678901234,
+        "cpu_affinity": 0,
+        "disable_dynamic_frequency": true
+    },
+    "timing": {
+        "use_rdtsc": true,
+        "warmup_runs": 3,
+        "min_iterations": 10,
+        "max_iterations": 1000,
+        "target_cv": 0.02
+    },
+    "energy": {
+        "interval_ms": 1000,
+        "stats_interval": 10
+    },
+    "algorithms": {
+        "lcg": {
+            "multiplier": 6364136223846793005,
+            "increment": 1,
+            "max_bit_size": 4096
+        },
+        "xoshiro": {
+            "max_bit_size": 4096
+        },
+        "miller_rabin": {
+            "iterations": 40,
+            "max_bit_size": 4096
+        },
+        "baillie_psw": {
+            "max_bit_size": 4096
+        }
+    },
+    "bit_sizes": [40, 56, 80, 128, 168, 224, 256, 512, 1024, 2048, 4096]
+} 

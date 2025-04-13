@@ -1,0 +1,112 @@
+@startuml Energy Measurement Workflow
+
+title "RISC-V Energy Measurement Workflow"
+
+skinparam backgroundColor white
+skinparam style strictuml
+
+actor "User" as User
+participant "run_experiments.sh" as MainScript
+participant "energy_experiment.sh" as EnergyScript
+participant "setup_riscv.sh" as SetupScript
+participant "continuous_operation" as ContinuousOp
+participant "LCG / Xoshiro" as PRNG
+participant "Miller-Rabin / Baillie-PSW" as PrimalityTest
+database "Energy Log Files" as EnergyLog
+participant "analyze_results.py" as Analysis
+actor "USB Power Meter" as PowerMeter
+
+== Setup Environment ==
+
+User -> SetupScript : Execute with options
+activate SetupScript
+SetupScript -> SetupScript : Set CPU governor to performance
+SetupScript -> SetupScript : Stop non-essential services
+SetupScript -> SetupScript : Disable WiFi (optional)
+SetupScript --> User : Environment prepared
+deactivate SetupScript
+
+== Run Energy Experiments ==
+
+User -> MainScript : Execute with energy options
+activate MainScript
+MainScript -> MainScript : Parse arguments
+MainScript -> MainScript : Load configuration
+MainScript -> EnergyScript : Call with parameters
+activate EnergyScript
+
+EnergyScript -> EnergyScript : Parse arguments
+EnergyScript -> EnergyScript : Determine algorithms and bit sizes
+
+loop for each algorithm
+  loop for each bit size
+    EnergyScript -> EnergyScript : Create log file
+    EnergyScript -> EnergyScript : Write experiment metadata
+    
+    EnergyScript --> User : Prompt to start power meter
+    User -> PowerMeter : Start measuring
+    User --> EnergyScript : Continue
+
+    EnergyScript -> ContinuousOp : Execute with algorithm, bit size, and duration
+    activate ContinuousOp
+    
+    alt PRNG Algorithm
+      ContinuousOp -> PRNG : Initialize algorithm
+      
+      ContinuousOp -> ContinuousOp : Start countdown
+      
+      loop until duration expires
+        ContinuousOp -> PRNG : Generate random number
+        activate PRNG
+        PRNG --> ContinuousOp : Return result
+        deactivate PRNG
+        
+        ContinuousOp -> ContinuousOp : Log statistics periodically
+        ContinuousOp -> EnergyScript : Show progress
+      end
+    else Primality Test Algorithm
+      ContinuousOp -> ContinuousOp : Generate a prime number
+      ContinuousOp -> ContinuousOp : Start countdown
+      
+      loop until duration expires
+        ContinuousOp -> PrimalityTest : Test primality
+        activate PrimalityTest
+        PrimalityTest --> ContinuousOp : Return result
+        deactivate PrimalityTest
+        
+        ContinuousOp -> ContinuousOp : Log statistics periodically
+        ContinuousOp -> EnergyScript : Show progress
+      end
+    end
+    
+    ContinuousOp --> EnergyScript : Operation completed
+    deactivate ContinuousOp
+    
+    EnergyScript -> EnergyLog : Write results
+    
+    EnergyScript --> User : Prompt to stop power meter
+    User -> PowerMeter : Stop measuring
+    User -> User : Record energy consumption
+    User --> EnergyScript : Continue
+    
+    EnergyScript --> User : Ready for next experiment?
+    User --> EnergyScript : Proceed
+  end
+end
+
+EnergyScript --> MainScript : Experiments completed
+deactivate EnergyScript
+MainScript --> User : Energy experiments done
+deactivate MainScript
+
+== Analyze Results ==
+
+User -> Analysis : Execute with energy option
+activate Analysis
+Analysis -> EnergyLog : Read data
+Analysis -> Analysis : Calculate statistics
+Analysis -> Analysis : Generate plot
+Analysis --> User : Show analysis results
+deactivate Analysis
+
+@enduml 

@@ -1,0 +1,123 @@
+@startuml Prime Number Workflow
+
+skinparam backgroundColor white
+skinparam style strictuml
+
+actor User
+participant "Main Program" as Main
+participant "PRNG\n(LCG or Xoshiro256++)" as PRNG
+participant "PrimalityTester" as Tester
+participant "Miller-Rabin" as MR
+participant "Baillie-PSW" as BPSW
+participant "Lucas Test" as Lucas
+database "Results" as Results
+
+== Generate Prime Number ==
+
+User -> Main : generate prime bits
+activate Main
+
+Main -> PRNG : select PRNG algorithm
+activate PRNG
+
+Main -> Tester : select primality test
+activate Tester
+
+loop until prime found
+    PRNG -> PRNG : generate random odd number
+    PRNG --> Tester : candidate
+
+    alt Miller-Rabin Selected
+        Tester -> MR : test(candidate, k)
+        activate MR
+        
+        MR -> MR : Find d, s where n-1 = 2^s * d
+        
+        loop k times
+            MR -> MR : Select random a ∈ [2, n-2]
+            MR -> MR : Compute a^d mod n
+            MR -> MR : Test witness
+        end
+        
+        MR --> Tester : probably prime?
+        deactivate MR
+        
+    else Baillie-PSW Selected
+        Tester -> BPSW : test(candidate)
+        activate BPSW
+        
+        BPSW -> BPSW : Trial division
+        BPSW -> BPSW : Check perfect square
+        
+        BPSW -> MR : test(candidate, base=2)
+        activate MR
+        MR --> BPSW : result
+        deactivate MR
+        
+        alt passed Miller-Rabin base 2
+            BPSW -> Lucas : strong_lucas_test(candidate)
+            activate Lucas
+            
+            Lucas -> Lucas : Find D with Jacobi(D/n) = -1
+            Lucas -> Lucas : Calculate Lucas sequence
+            Lucas -> Lucas : Check U_d and V_d conditions
+            
+            Lucas --> BPSW : result
+            deactivate Lucas
+        end
+        
+        BPSW --> Tester : probably prime?
+        deactivate BPSW
+    end
+    
+    alt prime found
+        Tester --> Main : prime found
+        Main --> User : display prime
+    end
+end
+
+deactivate Tester
+deactivate PRNG
+deactivate Main
+
+== Benchmark Performance ==
+
+User -> Main : benchmark
+activate Main
+
+Main -> PRNG : benchmark all PRNGs
+activate PRNG
+
+loop for each bit size
+    PRNG -> PRNG : generate random number
+    PRNG -> PRNG : measure time
+end
+
+PRNG -> Results : save results
+PRNG --> Main : results
+deactivate PRNG
+
+Main -> Tester : benchmark all tests
+activate Tester
+
+loop for each bit size
+    Tester -> PRNG : generate random odd number
+    PRNG --> Tester : candidate
+    
+    Tester -> MR : test candidate
+    MR --> Tester : result
+    
+    Tester -> BPSW : test candidate
+    BPSW --> Tester : result
+    
+    Tester -> Tester : measure time
+end
+
+Tester -> Results : save results
+Tester --> Main : results
+deactivate Tester
+
+Main --> User : benchmark complete
+deactivate Main
+
+@enduml 

@@ -1,0 +1,103 @@
+@startuml Experiment Classes
+
+title "RISC-V Experiment Classes"
+
+skinparam backgroundColor white
+skinparam style strictuml
+
+' Existing interfaces/classes
+interface PRNGInterface {
+  +randbits(mpz_t result, int k)
+  +next_u64()
+}
+
+class LCG {
+  -uint64_t state
+  -uint64_t LCG_A
+  -uint64_t LCG_C
+  +LCG(uint64_t seed)
+  +next_u64()
+  +randbits(mpz_t result, int k)
+}
+
+class Xoshiro256pp {
+  -uint64_t s[4]
+  -void seed_state(uint64_t seed)
+  +Xoshiro256pp(uint64_t seed)
+  +next_u64()
+  +randbits(mpz_t result, int k)
+}
+
+class PrimalityTester {
+  +enum TestType {MILLER_RABIN, BAILLIE_PSW}
+  +is_prime(mpz_t n, TestType type, int iterations)
+  +find_prime(mpz_t result, int bits, TestType type)
+  +generate_prime(mpz_t result, int bits)
+}
+
+namespace MillerRabin {
+  class Test {
+    +{static} bool test(mpz_t n, int k, gmp_randstate_t randstate)
+  }
+}
+
+namespace BailliePSW {
+  class Test {
+    +{static} bool test(mpz_t n, gmp_randstate_t randstate)
+    -{static} bool strong_lucas_test(mpz_t n)
+  }
+}
+
+' Experiment programs
+class measure_prng_time {
+  +main(int argc, char* argv[])
+  -{static} uint64_t rdtsc()
+  -{static} uint64_t high_resolution_time()
+}
+
+class measure_primality_time {
+  +main(int argc, char* argv[])
+  -{static} uint64_t rdtsc()
+  -{static} uint64_t high_resolution_time()
+}
+
+class continuous_operation {
+  +main(int argc, char* argv[])
+  -void run_prng(PRNGInterface& prng, int bits, int duration)
+  -void run_primality(PrimalityTester& tester, TestType type, int bits, int duration)
+  -void signal_handler(int signal)
+  -std::atomic<bool> g_running
+}
+
+' Configuration
+class "default_config.json" as Config {
+  +general: {...}
+  +timing: {...}
+  +energy: {...}
+  +algorithms: {...}
+  +bit_sizes: [...]
+}
+
+' Relationships
+PRNGInterface <|-- LCG
+PRNGInterface <|-- Xoshiro256pp
+
+PrimalityTester ..> MillerRabin::Test : uses
+PrimalityTester ..> BailliePSW::Test : uses
+
+measure_prng_time ..> PRNGInterface : uses
+measure_prng_time ..> LCG : uses
+measure_prng_time ..> Xoshiro256pp : uses
+
+measure_primality_time ..> PrimalityTester : uses
+
+continuous_operation ..> PRNGInterface : uses
+continuous_operation ..> PrimalityTester : uses
+continuous_operation ..> LCG : uses
+continuous_operation ..> Xoshiro256pp : uses
+
+Config ..> measure_prng_time : configures
+Config ..> measure_primality_time : configures
+Config ..> continuous_operation : configures
+
+@enduml 

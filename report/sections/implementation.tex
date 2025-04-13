@@ -1,0 +1,160 @@
+\section{Implementation}
+
+This section details the implementation of the random number generation and primality testing algorithms, with special attention to optimizations for resource-constrained environments \cite{energy_efficient, iot_survey}.
+
+\subsection{Random Number Generation Algorithms}
+
+\subsubsection{Linear Congruential Generator (LCG)}
+The Linear Congruential Generator is one of the simplest PRNGs, defined by the recurrence relation:
+
+\begin{equation}
+X_{n+1} = (a \cdot X_n + c) \bmod m
+\end{equation}
+
+Where:
+\begin{itemize}
+    \item $X_n$ is the current state
+    \item $X_{n+1}$ is the next state
+    \item $a$ is the multiplier
+    \item $c$ is the increment
+    \item $m$ is the modulus
+\end{itemize}
+
+Our implementation uses the parameters from the Numerical Recipes version of the LCG:
+\begin{itemize}
+    \item $a = 1664525$
+    \item $c = 1013904223$
+    \item $m = 2^{32}$
+\end{itemize}
+
+These parameters were chosen for efficient implementation on 32-bit systems while providing a reasonable period. The implementation leverages bitwise operations to optimize the modulo operation, which is crucial for performance in resource-constrained environments \cite{energy_efficient}.
+
+\subsubsection{Xoshiro256++}
+Xoshiro256++ is a modern, fast PRNG with excellent statistical properties, making it suitable for cryptographic applications that don't require cryptographic security. The algorithm operates on a 256-bit state divided into four 64-bit integers.
+
+The core algorithm is defined as:
+
+\begin{verbatim}
+uint64_t xoshiro256pp(void) {
+    uint64_t result = rotl(s[0] + s[3], 23) + s[0];
+    uint64_t t = s[1] << 17;
+    s[2] ^= s[0];
+    s[3] ^= s[1];
+    s[1] ^= s[2];
+    s[0] ^= s[3];
+    s[2] ^= t;
+    s[3] = rotl(s[3], 45);
+    return result;
+}
+\end{verbatim}
+
+Our implementation includes optimizations for memory usage and computational efficiency, which are critical for resource-constrained environments \cite{embedded_benchmarking}:
+\begin{itemize}
+    \item Efficient bit manipulation operations to minimize instruction count
+    \item Careful state management to avoid unnecessary memory operations
+    \item Unrolled loops where beneficial for performance
+\end{itemize}
+
+\subsection{Primality Testing Algorithms}
+
+\subsubsection{Miller-Rabin Primality Test}
+The Miller-Rabin primality test is a probabilistic algorithm that determines whether a given number is prime. The test is based on an extension of Fermat's little theorem and can be tuned to provide different levels of certainty.
+
+The algorithm works as follows:
+\begin{enumerate}
+    \item Express $n - 1$ as $2^r \cdot d$ where $d$ is odd
+    \item Choose a random base $a$ in the range $[2, n-2]$
+    \item Compute $x = a^d \bmod n$
+    \item If $x = 1$ or $x = n-1$, the test passes for this base
+    \item For $i = 1$ to $r-1$:
+    \begin{itemize}
+        \item Compute $x = x^2 \bmod n$
+        \item If $x = n-1$, the test passes for this base
+        \item If $x = 1$, return composite
+    \end{itemize}
+    \item If we reach this point, return composite
+    \item Repeat steps 2-6 for multiple bases to reduce the probability of error
+\end{enumerate}
+
+Our implementation includes the following optimizations for resource-constrained environments \cite{energy_efficient}:
+\begin{itemize}
+    \item Efficient modular exponentiation using the square-and-multiply algorithm
+    \item Early termination when composite status is detected
+    \item Memory-efficient representation of large integers
+    \item Dynamic adjustment of the number of test rounds based on the desired certainty level and available resources
+\end{itemize}
+
+\subsubsection{Baillie-PSW Primality Test}
+The Baillie-PSW test combines the Miller-Rabin test with a Lucas pseudoprime test, providing a more robust primality test with no known counterexamples for properly implemented versions.
+
+The algorithm consists of the following steps:
+\begin{enumerate}
+    \item Perform trial division by small primes (2, 3, 5, 7, 11, 13, 17, 19, 23)
+    \item Perform a single Miller-Rabin test with base 2
+    \item Perform a Lucas pseudoprime test
+\end{enumerate}
+
+For the Lucas test:
+\begin{enumerate}
+    \item Find the first $D$ in the sequence 5, -7, 9, -11, 13, -15, ... such that the Jacobi symbol $(D/n) = -1$
+    \item Calculate Lucas sequences $U_k$ and $V_k$ with parameters $P=1$ and $Q=(1-D)/4$
+    \item Compute $U_{n+1}$ and check if $U_{n+1} \equiv 0 \pmod{n}$
+\end{enumerate}
+
+Our implementation includes several optimizations specific to resource-constrained environments \cite{embedded_benchmarking, energy_efficient}:
+\begin{itemize}
+    \item Efficient computation of the Jacobi symbol
+    \item Optimized Lucas sequence computation using modular arithmetic
+    \item Memory-efficient state representation
+    \item Combined implementation that shares code with the Miller-Rabin test where possible
+\end{itemize}
+
+\subsection{Implementation Considerations}
+
+\subsubsection{Memory Optimization}
+In resource-constrained environments, memory usage is often a critical limitation. Our implementations include the following memory optimizations \cite{iot_survey}:
+\begin{itemize}
+    \item In-place operations where possible to avoid temporary allocations
+    \item Reuse of memory buffers across different algorithm phases
+    \item Careful management of stack usage to avoid stack overflow in embedded environments
+    \item Compile-time configuration options to trade memory usage for performance based on the target environment
+\end{itemize}
+
+\subsubsection{Computational Efficiency}
+To optimize computational efficiency, our implementations employ several techniques \cite{energy_efficient}:
+\begin{itemize}
+    \item Bitwise operations instead of more expensive arithmetic when possible
+    \item Loop unrolling for performance-critical sections
+    \item Strength reduction (replacing expensive operations with equivalent but less expensive ones)
+    \item Early termination of algorithms when definitive results are available
+    \item Cache-friendly memory access patterns
+\end{itemize}
+
+\subsubsection{Energy Efficiency}
+Energy consumption is particularly important in battery-powered IoT devices. Our implementations include the following energy-saving optimizations \cite{energy_efficient}:
+\begin{itemize}
+    \item Instruction count minimization to reduce CPU active time
+    \item Algorithm adaptation to minimize high-energy operations (e.g., memory accesses, floating-point operations)
+    \item Configuration options to trade performance for energy efficiency
+    \item Support for processor sleep modes between operations when appropriate
+\end{itemize}
+
+\subsubsection{Portability}
+Our implementations are designed to be portable across different resource-constrained platforms \cite{embedded_benchmarking}:
+\begin{itemize}
+    \item Standard C implementation with minimal dependency on external libraries
+    \item Abstraction layers for platform-specific optimizations
+    \item Consistent behavior across 8-bit, 16-bit, 32-bit, and 64-bit architectures
+    \item Compile-time configuration options for different environments
+\end{itemize}
+
+\subsection{Implementation Validation}
+To ensure correctness, our implementations have been validated through:
+\begin{itemize}
+    \item Testing against known test vectors from the NIST Statistical Test Suite \cite{nist_test_suite}
+    \item Comparison with reference implementations
+    \item Formal verification of critical algorithm components
+    \item Extensive testing across different input sizes and edge cases
+\end{itemize}
+
+This comprehensive implementation approach ensures that our algorithms are suitable for deployment in a wide range of resource-constrained environments, from IoT devices to embedded systems, while maintaining the necessary security properties for cryptographic applications. 
