@@ -8,6 +8,9 @@
 #include <memory>
 #include <fstream>
 #include <sstream>
+#include <algorithm>
+#include <cmath>
+#include <tuple>
 
 /**
  * @brief Benchmark PRNGs for random number generation
@@ -21,10 +24,40 @@ private:
     const std::vector<int> bit_sizes = {40, 56, 80, 128, 168, 224, 256, 512, 1024, 2048, 4096};
     
     // Number of runs to average over
-    const int num_runs = 100;
+    const int num_runs = 30;
     
     // Output file for CSV results
     const std::string output_file = "results/prng_benchmark.csv";
+    
+    /**
+     * @brief Calculate standard deviation
+     * 
+     * @param values Vector of values
+     * @param mean Mean value
+     * @return double Standard deviation
+     */
+    double calculate_stddev(const std::vector<double>& values, double mean) {
+        double variance = 0.0;
+        for (double value : values) {
+            variance += (value - mean) * (value - mean);
+        }
+        return std::sqrt(variance / values.size());
+    }
+    
+    /**
+     * @brief Calculate median
+     * 
+     * @param values Vector of values
+     * @return double Median value
+     */
+    double calculate_median(std::vector<double> values) {
+        std::sort(values.begin(), values.end());
+        if (values.size() % 2 == 0) {
+            return (values[values.size() / 2 - 1] + values[values.size() / 2]) / 2.0;
+        } else {
+            return values[values.size() / 2];
+        }
+    }
     
     /**
      * @brief Benchmark a single PRNG
@@ -40,17 +73,40 @@ private:
         mpz_init(num);
         
         for (int bits : bit_sizes) {
-            // Measure average time to generate a random number of the specified bit size
-            double avg_time = TimingUtils::measure_average_time_ms([&]() {
-                prng.randbits(num, bits);
-            }, num_runs);
+            // Vector to store all time measurements
+            std::vector<double> time_measurements;
+            
+            // Run the benchmark multiple times for statistical significance
+            for (int run = 0; run < num_runs; run++) {
+                // Measure time to generate a random number of the specified bit size
+                double run_time = TimingUtils::measure_time_ms([&]() {
+                    prng.randbits(num, bits);
+                });
+                
+                time_measurements.push_back(run_time);
+            }
+            
+            // Calculate statistics
+            double mean_time = 0.0;
+            for (double time : time_measurements) {
+                mean_time += time;
+            }
+            mean_time /= time_measurements.size();
+            
+            double median_time = calculate_median(time_measurements);
+            double stddev_time = calculate_stddev(time_measurements, mean_time);
             
             // Format the result string
             std::ostringstream result;
-            result << name << "," << bits << "," << std::fixed << std::setprecision(6) << avg_time;
+            result << name << "," << bits << "," 
+                   << std::fixed << std::setprecision(6) << mean_time << ","
+                   << std::fixed << std::setprecision(6) << median_time << ","
+                   << std::fixed << std::setprecision(6) << stddev_time;
             results.push_back(result.str());
             
-            std::cout << "  " << bits << " bits: " << avg_time << " ms" << std::endl;
+            std::cout << "  " << bits << " bits: Mean=" << mean_time 
+                      << " ms, Median=" << median_time 
+                      << " ms, StdDev=" << stddev_time << " ms" << std::endl;
         }
         
         mpz_clear(num);
@@ -64,7 +120,7 @@ public:
         std::vector<std::string> results;
         
         // Add CSV header
-        results.push_back("Algorithm,BitSize,TimeMs");
+        results.push_back("Algorithm,BitSize,MeanTimeMs,MedianTimeMs,StdDevTimeMs");
         
         // Create and benchmark each PRNG
         {
