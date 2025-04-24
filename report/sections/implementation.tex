@@ -109,14 +109,13 @@ Our implementation includes several optimizations specific to resource-constrain
     \item Combined implementation that shares code with the Miller-Rabin test where possible
 \end{itemize}
 
-\subsection{Implementation Considerations}
-
+\subsection{Implementation Details}
 \subsubsection{Memory Optimization}
 In resource-constrained environments, memory usage is often a critical limitation. Our implementations include the following memory optimizations \cite{iot_survey}:
 \begin{itemize}
     \item In-place operations where possible to avoid temporary allocations
     \item Reuse of memory buffers across different algorithm phases
-    \item Careful management of stack usage to avoid stack overflow in embedded environments
+    \item Careful management of stack usage to avoid stack overflow in constrained environments
     \item Compile-time configuration options to trade memory usage for performance based on the target environment
 \end{itemize}
 
@@ -130,22 +129,12 @@ To optimize computational efficiency, our implementations employ several techniq
     \item Cache-friendly memory access patterns
 \end{itemize}
 
-\subsubsection{Energy Efficiency}
-Energy consumption is particularly important in battery-powered IoT devices. Our implementations include the following energy-saving optimizations \cite{energy_efficient}:
-\begin{itemize}
-    \item Instruction count minimization to reduce CPU active time
-    \item Algorithm adaptation to minimize high-energy operations (e.g., memory accesses, floating-point operations)
-    \item Configuration options to trade performance for energy efficiency
-    \item Support for processor sleep modes between operations when appropriate
-\end{itemize}
-
-\subsubsection{Portability}
+\subsubsection{Portability and Build System}
 Our implementations are designed to be portable across different resource-constrained platforms \cite{embedded_benchmarking}:
 \begin{itemize}
-    \item Standard C implementation with minimal dependency on external libraries
-    \item Abstraction layers for platform-specific optimizations
-    \item Consistent behavior across 8-bit, 16-bit, 32-bit, and 64-bit architectures
-    \item Compile-time configuration options for different environments
+    \item \textbf{Standard Compliance}: Adhering to C++11 standards for broad compatibility.
+    \item \textbf{Minimal Dependencies}: Relying primarily on GMP and standard libraries.
+    \item Abstraction layers for potential platform-specific optimizations (though currently focused on standard C++/GMP).
 \end{itemize}
 
 \subsection{Implementation Validation}

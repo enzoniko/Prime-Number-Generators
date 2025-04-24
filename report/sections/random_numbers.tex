@@ -1,4 +1,4 @@
-\section{Random Numbers}
+\section{Pseudo-Random Number Generators (PRNGs)}
 
 This section covers the pseudo-random number generators (PRNGs) implemented in this project. We have chosen to implement and analyze two algorithms: the Linear Congruential Generator (LCG) and the Xoshiro256++ generator. Both algorithms have been implemented with the capability to generate random numbers up to 4096 bits in length, with particular focus on their performance characteristics in resource-constrained environments.
 
@@ -6,7 +6,7 @@ This section covers the pseudo-random number generators (PRNGs) implemented in t
 
 Pseudo-random number generators are deterministic algorithms that produce sequences of numbers that approximate the properties of random numbers. These algorithms typically start with an initial value called a seed and apply transformations to generate subsequent values. The quality of a PRNG is assessed through various statistical measures, as well as practical considerations regarding implementation complexity and computational efficiency.
 
-In cryptographic applications, especially those deployed in resource-constrained systems such as embedded devices and IoT platforms, PRNGs must satisfy several properties \cite{prng_iot}:
+In cryptographic applications, especially those deployed in resource-constrained systems, PRNGs must satisfy several properties \cite{prng_iot}:
 
 \begin{itemize}
     \item \textbf{Uniform Distribution}: The generated numbers should be uniformly distributed across their range, ensuring unbiased sampling.
@@ -17,11 +17,9 @@ In cryptographic applications, especially those deployed in resource-constrained
     
     \item \textbf{Unpredictability}: Given a sequence of previously generated numbers, it should be computationally infeasible to predict the next number, a vital property for security applications.
     
-    \item \textbf{Computational Efficiency}: The algorithm should require minimal computational resources, making it suitable for devices with limited processing capabilities.
+    \item \textbf{Statistical Randomness}: Output sequences must pass standard statistical tests for randomness (e.g., NIST STS \cite{nist_test_suite}).
     
-    \item \textbf{Memory Efficiency}: The state size should be minimal, accommodating devices with restricted memory constraints.
-    
-    \item \textbf{Energy Efficiency}: The operations should consume minimal energy, a critical consideration for battery-powered devices \cite{embedded_prng}.
+    \item \textbf{Efficiency}: Generation must be fast and consume minimal resources (CPU cycles, memory), a crucial consideration for systems with limited resources \cite{embedded_prng}.
 \end{itemize}
 
 While the PRNGs implemented in this project are not cryptographically secure in the strictest sense, they provide a foundation for understanding and implementing more secure generators. Our selection of LCG and Xoshiro256++ was informed by their demonstrated efficiency in resource-constrained environments, as documented in the literature \cite{prng_iot, xoshiro_website}.
@@ -55,11 +53,10 @@ In our implementation, we use the following parameters:
 The primary advantages of LCG in resource-constrained environments include:
 
 \begin{itemize}
-    \item \textbf{Minimal State Size}: LCG requires storage of only a single integer (the current state), resulting in a memory footprint of just 64 bits. This is particularly advantageous in systems with severe memory constraints \cite{embedded_prng}.
-    
-    \item \textbf{Computational Simplicity}: Each iteration requires only a multiplication, an addition, and an implicit modulo operation (through integer overflow), making it extremely efficient in terms of CPU cycles.
-    
-    \item \textbf{Energy Efficiency}: The simplicity of operations translates to lower energy consumption, a critical factor for battery-powered devices \cite{prng_iot}.
+    \item \textbf{Simplicity}: Very easy to implement and requires minimal state.
+    \item \textbf{Speed}: Extremely fast due to simple arithmetic operations.
+    \item \textbf{Low Memory Footprint}: Requires storing only the current state (one integer), ideal for systems with severe memory constraints.
+    \item \textbf{Computational Efficiency}: The simplicity of operations translates to lower computational cost.
 \end{itemize}
 
 For generating multi-precision numbers, we combine multiple 64-bit outputs from the LCG to create numbers of arbitrary bit lengths, an approach that maintains the algorithm's efficiency while extending its capability to generate large numbers.
@@ -127,6 +124,10 @@ void LinearCongruentialGenerator::randbits(mpz_t result, size_t bits) {
     delete[] blocks;
 }
 \end{lstlisting}
+
+\subsubsection{Analysis of Generated Results}
+
+The performance results, including the time required to generate random numbers of different bit sizes using both PRNGs, as well as metrics related to memory usage and energy consumption where applicable, are presented in the Results section (\autoref{sec:results}).
 
 \subsection{Xoshiro256++ Generator}
 
@@ -222,6 +223,10 @@ uint64_t Xoshiro256pp::next() {
 
 The `randbits()` method is similar to the LCG implementation but leverages the higher-quality randomness of Xoshiro256++.
 
+\subsubsection{Analysis of Generated Results}
+
+The performance results, including the time required to generate random numbers of different bit sizes using both PRNGs, as well as metrics related to memory usage and energy consumption where applicable, are presented in the Results section (\autoref{sec:results}).
+
 \subsection{Implementation of Arbitrary-Precision Random Number Generation}
 
 For both PRNGs, generating numbers of arbitrary precision (up to 4096 bits) requires additional handling beyond what the basic algorithms provide. We use the GMP library for this purpose \cite{granlund2012}:
@@ -231,7 +236,7 @@ For both PRNGs, generating numbers of arbitrary precision (up to 4096 bits) requ
     
     \item We call the PRNG's `next()` method repeatedly to fill these blocks.
     
-    \item We use GMP's `mpz_import` function to convert the array of 64-bit blocks into a single arbitrary-precision integer.
+    \item We use GMP's "mpz\_import" function to convert the array of 64-bit blocks into a single arbitrary-precision integer.
     
     \item We ensure the result has exactly the requested number of bits by setting the most significant bit and masking off any excess bits.
 \end{enumerate}
@@ -256,7 +261,7 @@ For resource-constrained systems, the choice between these generators involves a
     \item For devices with slightly more resources where randomness quality is important, Xoshiro256++ offers a better balance of quality and efficiency \cite{prng_iot}.
 \end{itemize}
 
-The detailed timing and energy consumption comparisons for generating random numbers of various bit lengths are presented in the Results section.
+The detailed timing comparisons for generating random numbers of various bit lengths are presented in the Results section (\autoref{sec:results}).
 
 \subsection{Code Snippets and Implementation Optimizations}
 
@@ -292,29 +297,10 @@ void Xoshiro256pp::seed(uint64_t new_seed) {
 
 Both seeding implementations incorporate techniques to enhance the quality of initialization, ensuring good randomness even with simple seed values—a consideration particularly important in embedded systems where high-quality entropy sources may be limited \cite{embedded_prng}.
 
-\subsubsection{Analysis of Generated Results}
+\subsection{Performance Comparison}
+We benchmarked the implemented LCG and Xoshiro256++ algorithms based on the methodology described earlier. Key metrics include execution time for generating a fixed number of random bits and estimated memory footprint. The detailed timing comparisons for generating random numbers of various bit lengths are presented in the Results section (\autoref{sec:results}).
 
-The table below contains placeholders for the performance results that will be filled in after running the experiments. It will show the time required to generate random numbers of different bit sizes using both PRNGs, as well as metrics related to memory usage and energy consumption where applicable.
+\subsection{Conclusion}
+Performance was evaluated based on execution speed and memory usage. The detailed timing comparisons for generating random numbers of various bit lengths are presented in the Results section (\autoref{sec:results}). 
 
-\begin{table}[H]
-\centering
-\caption{Time to Generate Random Numbers of Various Bit Lengths}
-\label{tab:prng_perf}
-\begin{tabular}{@{}lrr@{}}
-\toprule
-\textbf{Bit Length} & \textbf{LCG Time (ms)} & \textbf{Xoshiro256++ Time (ms)} \\
-\midrule
-40 bits     & [FILL IN] & [FILL IN] \\
-56 bits     & [FILL IN] & [FILL IN] \\
-80 bits     & [FILL IN] & [FILL IN] \\
-128 bits    & [FILL IN] & [FILL IN] \\
-168 bits    & [FILL IN] & [FILL IN] \\
-224 bits    & [FILL IN] & [FILL IN] \\
-256 bits    & [FILL IN] & [FILL IN] \\
-512 bits    & [FILL IN] & [FILL IN] \\
-1024 bits   & [FILL IN] & [FILL IN] \\
-2048 bits   & [FILL IN] & [FILL IN] \\
-4096 bits   & [FILL IN] & [FILL IN] \\
-\bottomrule
-\end{tabular}
-\end{table} 
+Having established our generators and benchmarked their performance up to 4096 bits, we now feed these bit-strings into probabilistic primality tests to measure verification costs.

@@ -1,99 +1,29 @@
 \section{Experiment Methodology}
+This section details the experimental methodology used for a rigorous and reproducible comparison of the algorithms, focusing on performance in resource-constrained contexts. We follow established benchmarking principles \cite{resource_constrained, embedded_benchmarking}, emphasizing reproducibility and statistical validity.
 
-This section details our rigorous methodology for evaluating random number generation and primality testing algorithms in resource-constrained environments. The approach follows established principles for benchmarking embedded systems \cite{resource_constrained, embedded_benchmarking} and emphasizes reproducibility and statistical validity.
+\subsection{Goals and Metrics}
+The primary goals are to compare algorithm performance and scalability, identify bottlenecks, and analyze resource utilization relevant to constrained environments. Key metrics collected include wall-clock execution time for core operations, peak memory allocation during execution, and input parameters such as bit length and algorithm-specific settings (e.g., Miller-Rabin rounds).
 
-\subsection{Experimental Design}
-Our methodology adheres to the following principles:
-\begin{itemize}
-    \item \textbf{Reproducibility}: All experiments are designed to be fully reproducible by other researchers.
-    \item \textbf{Statistical Validity}: Multiple runs with statistical analysis of results ensure significance.
-    \item \textbf{Controlled Variables}: We isolate the impact of individual parameters by controlling all other variables.
-    \item \textbf{Resource Monitoring}: Comprehensive monitoring of CPU, memory, and energy consumption provides insights into resource utilization patterns relevant to constrained environments \cite{energy_efficient}.
-    \item \textbf{Scaling Analysis}: We analyze how algorithms scale with different input sizes and resource restrictions.
-\end{itemize}
+\subsection{Experimental Setup}
+Baseline tests were conducted on a standard desktop system (Intel Core i7-9700K @ 3.60GHz, 32GB RAM) to establish reference performance. The software environment consisted of Ubuntu 22.04 LTS, GCC 11.4.0 compiling with the C++11 standard, and GMP 6.2.1. Timing and memory tracking were performed using a custom C++ application leveraging "high\_resolution\_clock".
 
-\subsection{Test Environment}
-\begin{itemize}
-    \item \textbf{Hardware Configuration}: [Specify processor model, clock speed, memory capacity, cache sizes]
-    \item \textbf{Software Environment}: [Operating system, compiler version, optimization flags]
-    \item \textbf{Resource Constraints}: We simulate various resource constraints typical of embedded and IoT systems \cite{iot_survey}, including:
-    \begin{itemize}
-        \item Limited memory availability (8MB, 16MB, 32MB)
-        \item Restricted CPU power (single core, limited clock speed)
-        \item Energy constraints (measured in joules per operation)
-    \end{itemize}
-\end{itemize}
+\subsection{Procedure}
+For each algorithm and input size configuration:
+\begin{enumerate}
+    \item Initialize data structures.
+    \item Execute the core operation multiple times (>= 30 runs) for statistical significance, monitoring time and resources.
+    \item Record raw performance metrics (time, memory).
+    \item Calculate statistical summaries (average, stddev, min, max).
+    \item Store all data systematically.
+\end{enumerate}
 
-\subsection{Measurement Methodology}
-We measure the following performance metrics:
-\begin{itemize}
-    \item \textbf{Execution Time}: Wall-clock time required to complete operations
-    \item \textbf{Memory Usage}: Peak and average memory consumption during execution
-    \item \textbf{Energy Consumption}: Power used during algorithm execution
-    \item \textbf{CPU Utilization}: Percentage of CPU resources required
-    \item \textbf{Scaling Behavior}: How performance changes with varying input sizes and resource constraints
-\end{itemize}
+\subsection{Data Analysis}
+Data analysis involves statistical characterization of performance using mean, median, and standard deviation. Performance trends and scaling behavior are identified through visualization (e.g., plots of execution time vs. bit length) and direct comparison across algorithms based on the collected metrics.
 
-\subsubsection{Timing Procedure}
-To ensure accurate time measurements:
-\begin{itemize}
-    \item Perform warm-up runs to eliminate cold-cache effects
-    \item Execute each experiment for a minimum of 30 iterations
-    \item Remove outliers beyond 2 standard deviations
-    \item Calculate mean, median, standard deviation, and confidence intervals (95\%)
-    \item Report minimum and maximum observed execution times
-\end{itemize}
+\subsection{Reproducibility}
+Reproducibility is ensured by making all source code for algorithms and benchmarks available in the repository, along with scripts for running benchmarks and parsing results. Experimental setup details (software versions, hardware) are documented, and raw data is archived.
 
-\subsection{Experimental Scenarios}
-\subsubsection{Random Number Generation}
-For each random number generation algorithm:
-\begin{itemize}
-    \item Generate sequences of varying lengths (10³, 10⁴, 10⁵, 10⁶)
-    \item Apply NIST Statistical Test Suite components \cite{nist_test_suite} to evaluate randomness quality
-    \item Measure execution time, memory usage, and energy consumption
-    \item Analyze the trade-off between randomness quality and resource usage
-\end{itemize}
+\subsection{Limitations}
+Several limitations should be noted. Benchmarks were conducted on a standard desktop, meaning performance may differ on actual resource-constrained hardware. Memory usage measurements are potentially approximate. The results reflect general C++/GMP performance without hardware-specific tuning. Finally, external factors like OS activity and cache state can introduce noise, although this is mitigated through multiple runs and statistical analysis.
 
-\subsubsection{Primality Testing}
-For each primality testing algorithm:
-\begin{itemize}
-    \item Test with numbers of varying bit lengths (32, 64, 128, 256, 512, 1024 bits)
-    \item Include both prime and composite test cases
-    \item Measure execution time, memory footprint, and energy usage
-    \item Evaluate accuracy vs. resource usage trade-offs at different certainty levels
-\end{itemize}
-
-\subsection{Data Collection and Analysis}
-\begin{itemize}
-    \item \textbf{Automated Logging}: All experimental data is automatically logged to prevent human error
-    \item \textbf{Statistical Analysis}: We apply rigorous statistical methods to identify significant differences between algorithms
-    \item \textbf{Visualization}: Results are presented through performance profiles, scaling graphs, and resource utilization charts
-\end{itemize}
-
-\subsection{Validation Strategies}
-To ensure correctness of our experimental results:
-\begin{itemize}
-    \item Cross-validate with established benchmark results where available
-    \item Verify random number generator output against NIST statistical test suite recommendations \cite{nist_test_suite}
-    \item Confirm primality test results against numbers with known primality status
-    \item Conduct sensitivity analysis to identify potential sources of experimental error
-\end{itemize}
-
-\subsection{Documentation}
-We document the following to ensure reproducibility:
-\begin{itemize}
-    \item Complete experimental setup with hardware and software specifications
-    \item Algorithm implementations with version control references
-    \item Raw experimental data and analysis scripts
-    \item Environmental variables and system configuration
-\end{itemize}
-
-\subsection{Limitations and Assumptions}
-We acknowledge the following limitations in our methodology:
-\begin{itemize}
-    \item Laboratory conditions may differ from real-world deployment scenarios
-    \item Hardware-specific optimizations may not translate to all platforms
-    \item Our resource constraint simulations approximate but may not perfectly match all target environments
-\end{itemize}
-
-This methodology follows established benchmarking practices for embedded and resource-constrained systems \cite{resource_constrained, embedded_benchmarking, energy_efficient} while adapting them to the specific requirements of cryptographic primitives evaluation. 
+This methodology adapts established benchmarking practices \cite{resource_constrained, embedded_benchmarking} for evaluating cryptographic primitives in resource-aware contexts. 
